@@ -13,7 +13,7 @@
   <?php endif; ?>
 
   <!-- 🟢 Botón para crear nueva solicitud -->
-  <a href="/logistica_global/controllers/solicitudController.php?accion=crear" class="btn">
+  <a href="/logistica_global/controllers/solicitudController.php?accion=crear" class="btn-primary">
     <i class="fa-solid fa-plus"></i> Nueva Solicitud
   </a>
 
@@ -69,7 +69,7 @@
             </td>
 
             <!-- Acciones -->
-            <td>
+            <td class="actions">
               <a href="/logistica_global/controllers/solicitudController.php?accion=editar&id=<?= urlencode($s['id_solicitud']) ?>" 
                  class="btn small edit">✏️ Editar</a>
 
@@ -91,9 +91,12 @@
 <!-- 🎨 Estilos -->
 <style>
   .container {
-    padding: 20px;
+    padding: 25px;
     max-width: 1200px;
     margin: auto;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
   }
 
   h1 {
@@ -105,54 +108,97 @@
     width: 100%;
     border-collapse: collapse;
     margin-top: 15px;
+    background: #fafafa;
   }
 
   th, td {
     padding: 10px;
-    border: 1px solid #ccc;
+    border: 1px solid #ddd;
     text-align: left;
+    font-size: 14px;
   }
 
   th {
-    background-color: #f4f4f4;
+    background-color: #134074;
+    color: white;
+  }
+
+  tr:nth-child(even) {
+    background: #f9f9f9;
   }
 
   .alert {
     padding: 10px;
     border-radius: 6px;
     margin-bottom: 15px;
+    font-weight: 500;
   }
-  .alert.success { background: #d4edda; color: #155724; }
-  .alert.info { background: #cce5ff; color: #004085; }
-  .alert.danger { background: #f8d7da; color: #721c24; }
+  .alert.success {
+    background: #d4edda;
+    color: #155724;
+    border-left: 4px solid #c3e6cb;
+  }
+  .alert.info {
+    background: #cce5ff;
+    color: #004085;
+    border-left: 4px solid #b8daff;
+  }
+  .alert.danger {
+    background: #f8d7da;
+    color: #721c24;
+    border-left: 4px solid #f5c6cb;
+  }
 
-  .btn {
+  .btn-primary {
     display: inline-block;
     background: #134074;
     color: white;
     text-decoration: none;
     padding: 8px 14px;
     border-radius: 6px;
-    margin: 5px 0;
+    margin: 5px 0 15px 0;
   }
-  .btn:hover {
+  .btn-primary:hover {
     background: #0e2a50;
   }
 
-  .btn.small {
+  .btn {
+    display: inline-block;
+    background: #134074;
+    color: white;
+    text-decoration: none;
+    padding: 6px 12px;
+    border-radius: 6px;
     font-size: 14px;
+  }
+
+  .btn.small {
+    font-size: 13px;
     padding: 6px 10px;
-    margin-right: 5px;
+    margin-right: 4px;
+  }
+
+  .btn.delete {
+    background: #b21f2d;
+  }
+  .btn.delete:hover {
+    background: #941a25;
   }
 
   .chip {
+    display: inline-block;
     padding: 4px 8px;
     border-radius: 5px;
     color: white;
     font-weight: bold;
+    text-transform: capitalize;
   }
   .chip.pendiente { background: #f0ad4e; }
   .chip.en-proceso { background: #0275d8; }
   .chip.completada { background: #5cb85c; }
   .chip.cancelada { background: #d9534f; }
+
+  .actions {
+    text-align: center;
+  }
 </style>

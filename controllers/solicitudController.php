@@ -47,12 +47,21 @@ switch ($accion) {
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             try {
+                // 🚫 Si el cliente no existe, el modelo lanza Exception y salta al catch
                 Solicitud::crear($conn, $_POST);
                 header("Location: /logistica_global/controllers/solicitudController.php?success=1");
                 exit;
+
             } catch (Exception $e) {
-                error_log("❌ Error al crear solicitud: " . $e->getMessage());
-                header("Location: /logistica_global/controllers/solicitudController.php?error=1");
+                $msg = $e->getMessage();
+
+                // Si el mensaje incluye "no existe", mostramos alerta específica
+                if (stripos($msg, 'no existe') !== false) {
+                    header("Location: /logistica_global/controllers/solicitudController.php?accion=crear&no_cliente=1");
+                } else {
+                    error_log("❌ Error al crear solicitud: " . $msg);
+                    header("Location: /logistica_global/controllers/solicitudController.php?accion=crear&error=1");
+                }
                 exit;
             }
         } else {
@@ -131,8 +140,14 @@ switch ($accion) {
                 header("Location: /logistica_global/controllers/solicitudController.php?updated=1");
                 exit;
             } catch (Exception $e) {
-                error_log("❌ Error al actualizar solicitud: " . $e->getMessage());
-                header("Location: /logistica_global/controllers/solicitudController.php?error=1");
+                $msg = $e->getMessage();
+
+                if (stripos($msg, 'no existe') !== false) {
+                    header("Location: /logistica_global/controllers/solicitudController.php?accion=editar&id=$id&no_cliente=1");
+                } else {
+                    error_log("❌ Error al actualizar solicitud: " . $msg);
+                    header("Location: /logistica_global/controllers/solicitudController.php?accion=editar&id=$id&error=1");
+                }
                 exit;
             }
         } else {

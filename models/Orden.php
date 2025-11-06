@@ -103,51 +103,39 @@ class Orden
     /* ============================================================
        🔍 OBTENER TODAS LAS ÓRDENES
     ============================================================ */
-public static function obtenerTodos($conn)
-{
-    $sql = "
-        SELECT 
-            o.id_orden,
-            o.id_solicitud,
+    public static function obtenerTodos($conn)
+    {
+        $sql = "
+            SELECT 
+                o.id_orden,
+                o.id_solicitud,
+                s.origen          AS direccion_origen,
+                s.destino_general AS direccion_destino,
+                o.peso_estimado_kg,
+                o.estado,
+                COALESCE(MAX(tm.nombre), 'No asignado') AS tipo_mercancia,
+                COALESCE(SUM(tmo.volumen_total_m3), 0) AS volumen_total_m3
+            FROM Orden o
+            INNER JOIN Solicitud s ON s.id_solicitud = o.id_solicitud
+            LEFT  JOIN Tipo_Mercancia_Orden tmo ON tmo.id_orden = o.id_orden
+            LEFT  JOIN Tipo_Mercancia tm ON tm.id_tipo_mercancia = tmo.id_tipo_mercancia
+            GROUP BY 
+                o.id_orden, o.id_solicitud, s.origen, s.destino_general, 
+                o.peso_estimado_kg, o.estado
+            ORDER BY o.id_orden DESC
+        ";
 
-            -- 👇 Alias EXACTOS que tu vista espera
-            s.origen          AS direccion_origen,
-            s.destino_general AS direccion_destino,
+        $stmt = sqlsrv_query($conn, $sql);
+        if (!$stmt) throw new Exception('Error al obtener las órdenes: ' . print_r(sqlsrv_errors(), true));
 
-            o.peso_estimado_kg,
-            o.estado,
-
-            -- Si una orden tuviera varias líneas, tomamos 1 nombre (casi siempre hay una)
-            COALESCE(MAX(tm.nombre), 'No asignado') AS tipo_mercancia,
-
-            -- Volumen total real desde Tipo_Mercancia_Orden
-            COALESCE(SUM(tmo.volumen_total_m3), 0) AS volumen_total_m3
-        FROM Orden o
-        INNER JOIN Solicitud s           ON s.id_solicitud = o.id_solicitud
-        LEFT  JOIN Tipo_Mercancia_Orden tmo ON tmo.id_orden      = o.id_orden
-        LEFT  JOIN Tipo_Mercancia       tm  ON tm.id_tipo_mercancia = tmo.id_tipo_mercancia
-        GROUP BY 
-            o.id_orden,
-            o.id_solicitud,
-            s.origen,
-            s.destino_general,
-            o.peso_estimado_kg,
-            o.estado
-        ORDER BY o.id_orden DESC
-    ";
-
-    $stmt = sqlsrv_query($conn, $sql);
-    if (!$stmt) throw new Exception('Error al obtener las órdenes: ' . print_r(sqlsrv_errors(), true));
-
-    $rows = [];
-    while ($r = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-        // Formateo opcional para que la tabla muestre 2 decimales
-        $r['peso_estimado_kg'] = number_format((float)$r['peso_estimado_kg'], 2);
-        $r['volumen_total_m3'] = number_format((float)$r['volumen_total_m3'], 2);
-        $rows[] = $r;
+        $rows = [];
+        while ($r = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+            $r['peso_estimado_kg'] = number_format((float)$r['peso_estimado_kg'], 2);
+            $r['volumen_total_m3'] = number_format((float)$r['volumen_total_m3'], 2);
+            $rows[] = $r;
+        }
+        return $rows;
     }
-    return $rows;
-}
 
     /* ============================================================
        🔍 OBTENER POR ID
@@ -195,12 +183,9 @@ public static function obtenerTodos($conn)
 
     /* ============================================================
        📋 ÓRDENES PARA EDICIÓN DE UN VIAJE
-       Firma usada por tu viajeController:
-       Orden::obtenerParaEdicionDeViaje($conn, $ruta['origen'], $ruta['destino'], $id_viaje)
     ============================================================ */
     public static function obtenerParaEdicionDeViaje($conn, string $origen, string $destino, int $id_viaje): array
     {
-        // 1) IDs ya asignados al viaje (tabla puente Orden_Viaje)
         $asignados = [];
         $stmtA = @sqlsrv_query($conn, "SELECT id_orden FROM Orden_Viaje WHERE id_viaje = ?", [$id_viaje]);
         if ($stmtA) {
@@ -209,7 +194,6 @@ public static function obtenerTodos($conn)
             }
         }
 
-        // 2) Programadas que coinciden con origen/destino  OR  ya asignadas (cualquier estado)
         $params = ['Programada', $origen, $destino];
         $inClause = '';
         if (!empty($asignados)) {
@@ -250,19 +234,15 @@ public static function obtenerTodos($conn)
             throw new \Exception('SQL Error (Orden::obtenerParaEdicionDeViaje): ' . print_r(sqlsrv_errors(), true));
         }
 
-        // 3) Construir salida con flag y etiqueta legible
         $out = [];
         while ($r = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
             $id = (int)$r['id_orden'];
-
             $ori  = $r['direccion_origen']  ?: $r['solicitud_origen'];
             $dest = $r['direccion_destino'] ?: $r['solicitud_destino'];
             $tipo = $r['tipo_servicio'] ?? 'Orden';
-
             $r['asignado'] = isset($asignados[$id]);
             $r['label'] = sprintf('#%d · %s · %s → %s', $id, $tipo, (string)$ori, (string)$dest);
-
-            $out[$id] = $r; // evita duplicados
+            $out[$id] = $r;
         }
         return array_values($out);
     }
@@ -276,4 +256,61 @@ public static function obtenerTodos($conn)
         $stmt = sqlsrv_query($conn, $sql, [(int)$id]);
         if (!$stmt) throw new Exception("Error al eliminar orden: " . print_r(sqlsrv_errors(), true));
     }
+
+    /* ============================================================
+       📦 Obtener órdenes que aún no tienen factura
+    ============================================================ */
+    public static function obtenerNoFacturadas($conn)
+    {
+        $sql = "
+            SELECT 
+                o.id_orden,
+                o.direccion_origen,
+                o.direccion_destino,
+                o.peso_estimado_kg,
+                o.estado,
+                ISNULL(cf.nombre, cj.nombre_empresa) AS nombre_cliente
+            FROM Orden o
+            INNER JOIN Solicitud s ON s.id_solicitud = o.id_solicitud
+            LEFT JOIN Cliente c ON c.id_cliente = s.id_cliente
+            LEFT JOIN Cliente_Fisico cf ON cf.id_cliente = c.id_cliente
+            LEFT JOIN Cliente_Juridico cj ON cj.id_cliente = c.id_cliente
+            LEFT JOIN Factura f ON o.id_orden = f.id_orden
+            WHERE f.id_factura IS NULL
+            ORDER BY o.id_orden DESC
+        ";
+
+        $stmt = sqlsrv_query($conn, $sql);
+        if (!$stmt) {
+            throw new Exception('Error al obtener órdenes no facturadas: ' . print_r(sqlsrv_errors(), true));
+        }
+
+        $ordenes = [];
+        while ($r = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+            $ordenes[] = [
+                'id_orden' => $r['id_orden'],
+                'cliente' => $r['nombre_cliente'] ?? '-',
+                'origen' => $r['direccion_origen'] ?? '-',
+                'destino' => $r['direccion_destino'] ?? '-',
+                'peso_estimado_kg' => $r['peso_estimado_kg'] ?? 0,
+                'estado' => $r['estado'] ?? '-',
+            ];
+        }
+
+        return $ordenes;
+    }
+
+    /* ============================================================
+       🧾 Marcar una orden como facturada
+    ============================================================ */
+    public static function marcarComoFacturada($conn, $id_orden)
+    {
+        $sql = "UPDATE Orden SET estado = 'Facturada' WHERE id_orden = ?";
+        $stmt = sqlsrv_query($conn, $sql, [$id_orden]);
+        if (!$stmt) {
+            throw new Exception('Error al marcar la orden como facturada: ' . print_r(sqlsrv_errors(), true));
+        }
+        return true;
+    }
 }}
+?>

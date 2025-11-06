@@ -9,9 +9,9 @@
       <option value="">-- Seleccione una orden --</option>
       <?php foreach ($ordenes as $o): ?>
         <option value="<?= $o['id_orden'] ?>">
-          #<?= $o['id_orden'] ?> -
-          <?= htmlspecialchars($o['cliente']) ?>
-          (<?= htmlspecialchars($o['direccion_origen']) ?> → <?= htmlspecialchars($o['direccion_destino']) ?>)
+          #<?= htmlspecialchars($o['id_orden']) ?> –
+          <?= htmlspecialchars($o['cliente'] ?? '-') ?>
+          (<?= htmlspecialchars($o['origen'] ?? '-') ?> → <?= htmlspecialchars($o['destino'] ?? '-') ?>)
         </option>
       <?php endforeach; ?>
     </select>

@@ -1,6 +1,7 @@
 <div class="container" style="max-width: 1000px; margin:auto; padding:25px;">
   <h1><i class="fa-solid fa-file-signature"></i> Solicitudes de Transporte (Público)</h1>
-  <p style="color:#333;">Estas son las solicitudes registradas en el sistema. Si desea solicitar un servicio, puede registrar una nueva solicitud.</p>
+  <p style="color:#333;">Estas son las solicitudes registradas en el sistema.  
+  Si desea solicitar un servicio, puede registrar una nueva solicitud.</p>
 
   <!-- 🟢 Botón para crear solicitud pública -->
   <div style="margin:15px 0;">
@@ -9,11 +10,11 @@
     </a>
   </div>
 
-  <!-- 📋 Tabla -->
-  <table style="width:100%; border-collapse:collapse; border:1px solid #ccc; background:#fff;">
-    <thead style="background:#134074; color:white;">
+  <!-- 📋 Tabla de solicitudes -->
+  <table class="tabla-solicitudes">
+    <thead>
       <tr>
-        <th style="padding:8px;">ID</th>
+        <th>ID</th>
         <th>Tipo de Servicio</th>
         <th>Origen</th>
         <th>Destino</th>
@@ -25,15 +26,17 @@
     <tbody>
       <?php if (!empty($solicitudes)): ?>
         <?php foreach ($solicitudes as $s): ?>
-          <tr style="text-align:center;">
+          <tr>
             <td><?= htmlspecialchars($s['id_solicitud'] ?? '-') ?></td>
             <td><?= htmlspecialchars($s['tipo_servicio'] ?? '-') ?></td>
             <td><?= htmlspecialchars($s['origen'] ?? '-') ?></td>
             <td><?= htmlspecialchars($s['destino_general'] ?? '-') ?></td>
             <td>
-              <span class="chip <?= strtolower(str_replace(' ', '-', $s['estado'] ?? '')) ?>">
-                <?= htmlspecialchars($s['estado'] ?? '-') ?>
-              </span>
+              <?php
+                $estado = strtolower(str_replace(' ', '-', $s['estado'] ?? ''));
+                $label = htmlspecialchars($s['estado'] ?? '-');
+              ?>
+              <span class="chip <?= $estado ?>"><?= $label ?></span>
             </td>
             <td><?= htmlspecialchars($s['prioridad'] ?? '-') ?></td>
             <td>
@@ -69,23 +72,30 @@
     color:#134074;
     margin-bottom:10px;
   }
-
-  table th, table td {
+  .tabla-solicitudes {
+    width:100%;
+    border-collapse:collapse;
+    border:1px solid #ccc;
+    background:#fff;
+    border-radius:8px;
+    overflow:hidden;
+  }
+  .tabla-solicitudes th, .tabla-solicitudes td {
     border:1px solid #ccc;
     padding:8px;
+    text-align:center;
   }
-
-  table th {
+  .tabla-solicitudes th {
     background:#134074;
     color:white;
     text-transform:uppercase;
     font-size:0.9em;
   }
-
-  table tr:nth-child(even) {
+  .tabla-solicitudes tr:nth-child(even) {
     background:#f9f9f9;
   }
 
+  /* Botones */
   .btn-primary {
     display:inline-block;
     background:#134074;

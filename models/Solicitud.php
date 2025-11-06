@@ -23,11 +23,17 @@ class Solicitud
             WHERE s.estado = 'Pendiente'
             ORDER BY s.id_solicitud DESC
         ";
+
         $stmt = sqlsrv_query($conn, $sql);
-        if (!$stmt) throw new Exception('Error al obtener solicitudes disponibles: ' . print_r(sqlsrv_errors(), true));
+        if (!$stmt) {
+            throw new Exception('Error al obtener solicitudes disponibles: ' . print_r(sqlsrv_errors(), true));
+        }
 
         $rows = [];
-        while ($r = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) $rows[] = $r;
+        while ($r = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+            $rows[] = $r;
+        }
+
         return $rows;
     }
 
@@ -76,7 +82,9 @@ class Solicitud
         ";
 
         $stmt = sqlsrv_query($conn, $query);
-        if (!$stmt) throw new Exception('Error al obtener solicitudes: ' . print_r(sqlsrv_errors(), true));
+        if (!$stmt) {
+            throw new Exception('Error al obtener solicitudes: ' . print_r(sqlsrv_errors(), true));
+        }
 
         $solicitudes = [];
         while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
@@ -85,6 +93,7 @@ class Solicitud
             }
             $solicitudes[] = $row;
         }
+
         return $solicitudes;
     }
 
@@ -118,29 +127,29 @@ class Solicitud
         ";
 
         $stmt = sqlsrv_query($conn, $query, [$id]);
-        if (!$stmt) throw new Exception('Error al obtener solicitud: ' . print_r(sqlsrv_errors(), true));
+        if (!$stmt) {
+            throw new Exception('Error al obtener solicitud: ' . print_r(sqlsrv_errors(), true));
+        }
 
         return sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
     }
 
     /* ============================================================
-       🆕 4. Crear solicitud (verifica existencia de clientes)
+       🆕 4. Crear solicitud (modo interno - valida existencia)
     ============================================================ */
     public static function crear($conn, $data)
     {
-        // ✅ Validar cliente remitente
+        // 🧩 Validar remitente
         $checkRem = sqlsrv_query($conn, "SELECT id_cliente FROM Cliente WHERE id_cliente = ?", [$data['id_cliente']]);
         if (!$checkRem || !sqlsrv_fetch_array($checkRem, SQLSRV_FETCH_ASSOC)) {
-            header("Location: /logistica_global/controllers/solicitudController.php?accion=crear&no_cliente=1");
-            exit;
+            throw new Exception('El cliente remitente seleccionado no existe.');
         }
 
-        // ✅ Validar cliente destinatario (si existe)
+        // 🧩 Validar destinatario (si existe)
         if (!empty($data['id_destinatario'])) {
             $checkDest = sqlsrv_query($conn, "SELECT id_cliente FROM Cliente WHERE id_cliente = ?", [$data['id_destinatario']]);
             if (!$checkDest || !sqlsrv_fetch_array($checkDest, SQLSRV_FETCH_ASSOC)) {
-                header("Location: /logistica_global/controllers/solicitudController.php?accion=crear&no_cliente=1");
-                exit;
+                throw new Exception('El cliente destinatario seleccionado no existe.');
             }
         }
 
@@ -153,6 +162,7 @@ class Solicitud
             OUTPUT INSERTED.id_solicitud
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, SYSDATETIME())
         ";
+
         $params = [
             $data['id_cliente'],
             $data['tipo_servicio'],
@@ -165,12 +175,14 @@ class Solicitud
         ];
 
         $stmt = sqlsrv_query($conn, $query, $params);
-        if (!$stmt) throw new Exception('Error al crear solicitud: ' . print_r(sqlsrv_errors(), true));
+        if (!$stmt) {
+            throw new Exception('Error al crear solicitud: ' . print_r(sqlsrv_errors(), true));
+        }
 
         sqlsrv_fetch($stmt);
         $idSolicitud = sqlsrv_get_field($stmt, 0);
 
-        // 👥 Registrar destinatario si aplica
+        // 👥 Registrar destinatario (si aplica)
         if (!empty($data['id_destinatario']) && $data['id_destinatario'] != $data['id_cliente']) {
             ParticipanteSolicitud::crear($conn, [
                 'id_solicitud'  => $idSolicitud,
@@ -184,34 +196,40 @@ class Solicitud
     }
 
     /* ============================================================
-       🌐 5. Crear solicitud pública (verifica si cliente existe)
+       🌐 5. Crear solicitud pública (visitantes sin sesión)
     ============================================================ */
     public static function crearPublica($conn, $data)
     {
         $correo = trim($data['correo'] ?? '');
-        if (empty($correo)) throw new Exception('Debe ingresar un correo válido.');
+        if (empty($correo)) {
+            throw new Exception('Debe ingresar un correo válido.');
+        }
 
-        // Buscar cliente existente
+        // 🔎 Buscar cliente existente
         $queryCheck = "SELECT id_cliente FROM Cliente WHERE correo = ?";
         $stmtCheck = sqlsrv_query($conn, $queryCheck, [$correo]);
-        if (!$stmtCheck) throw new Exception('Error al buscar cliente: ' . print_r(sqlsrv_errors(), true));
+        if (!$stmtCheck) {
+            throw new Exception('Error al buscar cliente: ' . print_r(sqlsrv_errors(), true));
+        }
 
         $row = sqlsrv_fetch_array($stmtCheck, SQLSRV_FETCH_ASSOC);
         if ($row) {
             $idCliente = $row['id_cliente'];
         } else {
-            // Crear nuevo cliente
+            // ➕ Crear nuevo cliente básico
             $sqlInsertCliente = "
                 INSERT INTO Cliente (tipo_identificacion, correo, telefono, estado)
                 OUTPUT INSERTED.id_cliente
                 VALUES ('Física', ?, ?, 'Activo')
             ";
             $stmtInsert = sqlsrv_query($conn, $sqlInsertCliente, [$correo, $data['telefono'] ?? null]);
-            if (!$stmtInsert) throw new Exception('Error al crear cliente público: ' . print_r(sqlsrv_errors(), true));
+            if (!$stmtInsert) {
+                throw new Exception('Error al crear cliente público: ' . print_r(sqlsrv_errors(), true));
+            }
             sqlsrv_fetch($stmtInsert);
             $idCliente = sqlsrv_get_field($stmtInsert, 0);
 
-            // Crear entrada básica en Cliente_Fisico
+            // 🧾 Crear registro mínimo en Cliente_Fisico
             $sqlCF = "
                 INSERT INTO Cliente_Fisico (id_cliente, nombre, primer_apellido, cedula)
                 VALUES (?, ?, ?, ?)
@@ -225,7 +243,7 @@ class Solicitud
             sqlsrv_query($conn, $sqlCF, $paramsCF);
         }
 
-        // Crear solicitud
+        // 🧾 Crear solicitud
         $sqlSolicitud = "
             INSERT INTO Solicitud (
                 id_cliente, tipo_servicio, descripcion, origen, destino_general, 
@@ -242,34 +260,37 @@ class Solicitud
             $data['destino_general'] ?? null,
             $data['observaciones'] ?? null
         ];
+
         $stmtSol = sqlsrv_query($conn, $sqlSolicitud, $paramsSolicitud);
-        if (!$stmtSol) throw new Exception('Error al crear solicitud pública: ' . print_r(sqlsrv_errors(), true));
+        if (!$stmtSol) {
+            throw new Exception('Error al crear solicitud pública: ' . print_r(sqlsrv_errors(), true));
+        }
 
         sqlsrv_fetch($stmtSol);
         return sqlsrv_get_field($stmtSol, 0);
     }
 
     /* ============================================================
-       ✏️ 6. Actualizar solicitud (verifica destinatario)
+       ✏️ 6. Actualizar solicitud
     ============================================================ */
     public static function actualizar($conn, $id, $data)
     {
-        // Verificar cliente destinatario
+        // 🔍 Verificar destinatario
         if (!empty($data['id_destinatario'])) {
             $checkDest = sqlsrv_query($conn, "SELECT id_cliente FROM Cliente WHERE id_cliente = ?", [$data['id_destinatario']]);
             if (!$checkDest || !sqlsrv_fetch_array($checkDest, SQLSRV_FETCH_ASSOC)) {
-                header("Location: /logistica_global/controllers/solicitudController.php?accion=editar&id=$id&no_cliente=1");
-                exit;
+                throw new Exception('El cliente destinatario no existe.');
             }
         }
 
-        // Actualizar solicitud
+        // 🧾 Actualizar solicitud
         $query = "
             UPDATE Solicitud
             SET tipo_servicio = ?, descripcion = ?, origen = ?, destino_general = ?, 
                 estado = ?, prioridad = ?, observaciones = ?
             WHERE id_solicitud = ?
         ";
+
         $params = [
             $data['tipo_servicio'],
             $data['descripcion'] ?? null,
@@ -280,10 +301,13 @@ class Solicitud
             $data['observaciones'] ?? null,
             $id
         ];
-        $stmt = sqlsrv_query($conn, $query, $params);
-        if (!$stmt) throw new Exception('Error al actualizar solicitud: ' . print_r(sqlsrv_errors(), true));
 
-        // Reasignar destinatario
+        $stmt = sqlsrv_query($conn, $query, $params);
+        if (!$stmt) {
+            throw new Exception('Error al actualizar solicitud: ' . print_r(sqlsrv_errors(), true));
+        }
+
+        // 👥 Reasignar destinatario
         sqlsrv_query($conn, "DELETE FROM Participante_Solicitud WHERE id_solicitud = ? AND rol = 'Destinatario'", [$id]);
         if (!empty($data['id_destinatario']) && $data['id_destinatario'] != $data['id_cliente']) {
             ParticipanteSolicitud::crear($conn, [
@@ -304,7 +328,9 @@ class Solicitud
     {
         sqlsrv_query($conn, "DELETE FROM Participante_Solicitud WHERE id_solicitud = ?", [$id]);
         $stmt = sqlsrv_query($conn, "DELETE FROM Solicitud WHERE id_solicitud = ?", [$id]);
-        if (!$stmt) throw new Exception('Error al eliminar solicitud: ' . print_r(sqlsrv_errors(), true));
+        if (!$stmt) {
+            throw new Exception('Error al eliminar solicitud: ' . print_r(sqlsrv_errors(), true));
+        }
         return true;
     }
 }
