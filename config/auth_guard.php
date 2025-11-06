@@ -9,6 +9,23 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // ============================================================
+// 🟢 EXCEPCIONES DE ACCESO PÚBLICO (sin iniciar sesión)
+// ============================================================
+// Estos controladores pueden ser visitados por usuarios sin sesión activa.
+$publicos = [
+  'index.php',
+  'loginController.php',
+  'solicitudController.php' // Permite acceso público a solicitudes (ej: formulario público)
+];
+
+$archivoActual = basename($_SERVER['PHP_SELF']);
+
+// Si el archivo actual está en la lista pública → permitir sin restricción
+if (in_array($archivoActual, $publicos)) {
+  return;
+}
+
+// ============================================================
 // 🚪 Verificar sesión activa
 // ============================================================
 if (empty($_SESSION['usuario'])) {
@@ -49,42 +66,54 @@ $permisos = [
     'planificacionController.php',
     'auditoriaController.php',
     'cargaController.php',
-    'participanteController.php'
+    'participanteController.php',
+    'index.php',
+    'loginController.php'
   ],
 
   'Conductor' => [ // 🚚 Operativa
-    'usuarioController.php',
-    'rolController.php',
     'viajeController.php',
-    'conductorController.php',
     'ordenController.php',
     'incidenteController.php',
-    'reporteEficienciaController.php'
+    'reporteEficienciaController.php',
+    'loginController.php',
+    'index.php'
   ],
 
   'Soporte' => [ // 🔧 Flota y mantenimiento
     'vehiculoController.php',
     'mantenimientoController.php',
-    'reporteEficienciaController.php'
+    'reporteEficienciaController.php',
+    'loginController.php',
+    'index.php'
   ],
 
   'Facturacion' => [ // 💰 Control financiero
     'facturaController.php',
-    'reporteEficienciaController.php'
+    'reporteEficienciaController.php',
+    'loginController.php',
+    'index.php'
   ],
 
   'Cliente' => [ // 👤 Solo reportes
-    'reporteEficienciaController.php'
+    'reporteEficienciaController.php',
+    'loginController.php',
+    'index.php'
+  ],
+
+  'Invitado' => [ // 🌐 Visitante sin iniciar sesión
+    'solicitudController.php',
+    'loginController.php',
+    'index.php'
   ]
 ];
 
 // ============================================================
 // 🔍 VALIDAR ACCESO AL CONTROLADOR ACTUAL
 // ============================================================
-$archivoActual = basename($_SERVER['PHP_SELF']); // nombre del script ejecutado
 $accesos = $permisos[$rolActual] ?? [];
 
-// Si el rol no tiene acceso a este módulo → redirigir a error 401
+// Si el rol no tiene acceso a este módulo → redirigir al error de restricción
 if (!in_array($archivoActual, $accesos)) {
   header('Location: /logistica_global/views/error/unauthorized.php');
   exit;
