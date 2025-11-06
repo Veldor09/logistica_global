@@ -67,6 +67,25 @@
       background-color: #157347;
     }
 
+    .btn-back {
+      display: inline-block;
+      width: 100%;
+      text-align: center;
+      background-color: #6c757d;
+      color: white;
+      padding: 0.7rem;
+      border-radius: 6px;
+      font-size: 1rem;
+      text-decoration: none;
+      font-weight: 500;
+      margin-top: 0.8rem;
+      transition: background 0.3s ease;
+    }
+
+    .btn-back:hover {
+      background-color: #5a6268;
+    }
+
     .alert {
       padding: 0.8rem;
       border-radius: 6px;
@@ -115,6 +134,9 @@
 
       <button type="submit" class="btn-primary">Entrar</button>
     </form>
+
+    <!-- 🔙 Botón para volver al inicio -->
+    <a href="/logistica_global/index.php" class="btn-back">⬅ Volver al Inicio</a>
   </div>
 </body>
 </html>
