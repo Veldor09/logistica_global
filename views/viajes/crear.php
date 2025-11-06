@@ -1,77 +1,105 @@
 <div class="container">
-  <h1><i class="fa-solid fa-route"></i> Registrar Nuevo Viaje</h1>
+  <h1>🚚 Registrar Viaje</h1>
 
-  <a href="/logistica_global/controllers/viajeController.php" class="btn">⬅️ Volver</a>
+  <a class="btn" href="/logistica_global/controllers/viajeController.php?accion=listar">⬅ Volver</a>
 
-  <form method="POST" action="/logistica_global/controllers/viajeController.php?accion=crear">
-    
-    <!-- Orden -->
-    <label for="id_orden">Orden</label>
-    <select name="id_orden" required>
-      <option value="">-- Seleccione Orden --</option>
-      <?php foreach ($ordenes as $o): ?>
-        <option value="<?= $o['id_orden'] ?>">
-          #<?= $o['id_orden'] ?> - <?= htmlspecialchars($o['tipo_servicio']) ?>
-        </option>
-      <?php endforeach; ?>
-    </select>
-
-    <!-- Conductor -->
-    <label for="id_conductor">Conductor</label>
-    <select name="id_conductor" required>
-      <option value="">-- Seleccione Conductor --</option>
-      <?php foreach ($conductores as $c): ?>
-        <option value="<?= $c['id_conductor'] ?>">
-          <?= htmlspecialchars($c['nombre'] . ' ' . $c['apellido1']) ?>
-        </option>
-      <?php endforeach; ?>
-    </select>
-
-    <!-- Vehículo -->
-    <label for="id_vehiculo">Vehículo</label>
-    <select name="id_vehiculo" required>
-      <option value="">-- Seleccione Vehículo --</option>
-      <?php foreach ($vehiculos as $v): ?>
-        <option value="<?= $v['id_vehiculo'] ?>">
-          <?= htmlspecialchars($v['placa'] . ' - ' . $v['marca']) ?>
-        </option>
-      <?php endforeach; ?>
-    </select>
-
-    <!-- Ruta -->
-    <label for="id_ruta">Ruta</label>
-    <select name="id_ruta">
-      <option value="">-- Seleccione Ruta --</option>
+  <!-- Paso 1: elegir ruta -->
+  <form method="GET" action="/logistica_global/controllers/viajeController.php">
+    <input type="hidden" name="accion" value="crear" />
+    <label>Ruta:</label>
+    <select name="id_ruta" onchange="this.form.submit()">
+      <option value="">-- Seleccionar --</option>
       <?php foreach ($rutas as $r): ?>
-        <option value="<?= $r['id_ruta'] ?>">
-          <?= htmlspecialchars($r['nombre_ruta']) ?>
+        <option value="<?= $r['id_ruta'] ?>" <?= ($id_ruta ?? 0) == $r['id_ruta'] ? 'selected' : '' ?>>
+          <?= htmlspecialchars($r['nombre_ruta']) ?> (<?= htmlspecialchars($r['origen'].' → '.$r['destino']) ?>)
         </option>
       <?php endforeach; ?>
     </select>
+    <noscript><button type="submit">Filtrar</button></noscript>
+  </form>
 
-    <label for="fecha_inicio">Fecha de Inicio</label>
-    <input type="datetime-local" name="fecha_inicio">
+  <hr/>
 
-    <label for="fecha_fin">Fecha de Fin</label>
-    <input type="datetime-local" name="fecha_fin">
+  <!-- Paso 2: datos del viaje + órdenes filtradas -->
+  <form method="POST" action="/logistica_global/controllers/viajeController.php?accion=crear">
+    <input type="hidden" name="id_ruta" value="<?= (int)($id_ruta ?? 0) ?>" />
 
-    <label for="kilometros_recorridos">Kilómetros Recorridos</label>
-    <input type="number" step="0.01" name="kilometros_recorridos">
+    <div class="grid-2">
+      <div>
+        <label>Conductor:</label>
+        <select name="id_conductor" required>
+          <option value="">-- Seleccionar --</option>
+          <?php foreach ($conductores as $c): ?>
+            <option value="<?= $c['id_conductor'] ?>"><?= htmlspecialchars($c['nombre']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
 
-    <label for="combustible_usado_litros">Combustible Usado (L)</label>
-    <input type="number" step="0.01" name="combustible_usado_litros">
+      <div>
+        <label>Vehículo:</label>
+        <select name="id_vehiculo" required>
+          <option value="">-- Seleccionar --</option>
+          <?php foreach ($vehiculos as $v): ?>
+            <option value="<?= $v['id_vehiculo'] ?>"><?= htmlspecialchars($v['placa']) ?></option>
+          <?php endforeach; ?>
+        </select>
+      </div>
+    </div>
 
-    <label for="observaciones">Observaciones</label>
-    <input type="text" name="observaciones" placeholder="Notas adicionales (opcional)">
+    <div class="grid-2">
+      <div>
+        <label>Fecha Inicio:</label>
+        <input type="datetime-local" name="fecha_inicio">
+      </div>
+      <div>
+        <label>Fecha Fin:</label>
+        <input type="datetime-local" name="fecha_fin">
+      </div>
+    </div>
 
-    <label for="estado">Estado</label>
+    <div class="grid-2">
+      <div>
+        <label>Kilómetros Recorridos:</label>
+        <input type="number" step="0.01" name="kilometros_recorridos">
+      </div>
+      <div>
+        <label>Combustible Usado (L):</label>
+        <input type="number" step="0.01" name="combustible_usado_litros">
+      </div>
+    </div>
+
+    <label>Observaciones:</label>
+    <textarea name="observaciones"></textarea>
+
+    <label>Estado:</label>
     <select name="estado">
       <option value="Pendiente">Pendiente</option>
-      <option value="En_Ruta">En Ruta</option>
+      <option value="En_Ruta">En ruta</option>
       <option value="Finalizado">Finalizado</option>
       <option value="Cancelado">Cancelado</option>
     </select>
 
-    <button type="submit"><i class="fa-solid fa-save"></i> Guardar Viaje</button>
+    <hr/>
+
+    <h3>📦 Órdenes coincidentes con la ruta seleccionada</h3>
+    <?php if (empty($id_ruta)): ?>
+      <p>Selecciona primero una ruta para ver las órdenes disponibles.</p>
+    <?php else: ?>
+      <?php if (empty($ordenes)): ?>
+        <p>No hay órdenes “Programada” con ese origen/destino.</p>
+      <?php else: ?>
+        <p>Selecciona una o más:</p>
+        <select name="ordenes[]" multiple size="8" style="min-width:420px;">
+          <?php foreach ($ordenes as $o): ?>
+            <option value="<?= $o['id_orden'] ?>">
+              #<?= $o['id_orden'] ?> — <?= htmlspecialchars($o['direccion_origen'].' → '.$o['direccion_destino']) ?> — <?= number_format((float)$o['peso_estimado_kg'],2) ?> kg
+            </option>
+          <?php endforeach; ?>
+        </select>
+        <p style="font-size:.9rem;color:#666;">(Ctrl/⌘ para seleccionar varias)</p>
+      <?php endif; ?>
+    <?php endif; ?>
+
+    <button type="submit" class="btn primary" <?= empty($id_ruta) ? 'disabled' : '' ?>>💾 Guardar</button>
   </form>
 </div>

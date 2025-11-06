@@ -1,122 +1,132 @@
 <?php
-class Incidente {
+// ============================================================
+// ⚠️ MODELO: Incidente.php
+// Gestión de incidentes registrados durante un viaje
+// ============================================================
 
-    /* Obtener todos los incidentes (con datos del viaje y conductor) */
-    public static function obtenerTodos($conn) {
-        $query = "
+if (!class_exists('Incidente')) {
+class Incidente
+{
+    /* ============================================================
+       📋 Obtener todos los incidentes (con viaje relacionado)
+    ============================================================ */
+    public static function obtenerTodos($conn): array
+    {
+        $sql = "
             SELECT 
                 i.id_incidente,
                 i.id_viaje,
+                v.id_viaje AS viaje_rel,
+                v.fecha_inicio,
+                v.fecha_fin,
                 i.tipo_incidente,
                 i.descripcion,
                 i.gravedad,
                 i.fecha_reporte,
-                i.estado,
-                c.nombre + ' ' + c.apellido1 + ' ' + ISNULL(c.apellido2, '') AS conductor,
-                v.placa,
-                i.descripcion
+                i.estado
             FROM Incidente i
-            INNER JOIN Viaje j ON i.id_viaje = j.id_viaje
-            INNER JOIN Conductor c ON j.id_conductor = c.id_conductor
-            INNER JOIN Vehiculo v ON j.id_vehiculo = v.id_vehiculo
-            ORDER BY i.fecha_reporte DESC
+            LEFT JOIN Viaje v ON v.id_viaje = i.id_viaje
+            ORDER BY i.id_incidente DESC
         ";
-
-        $stmt = sqlsrv_query($conn, $query);
-        if (!$stmt) die(print_r(sqlsrv_errors(), true));
-
-        $incidentes = [];
-        while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-            $incidentes[] = $row;
+        $stmt = sqlsrv_query($conn, $sql);
+        if (!$stmt) {
+            throw new \Exception('Error al obtener incidentes: ' . print_r(sqlsrv_errors(), true));
         }
-        return $incidentes;
-    }
 
-    /* Obtener incidentes por viaje */
-    public static function obtenerPorViaje($conn, $idViaje) {
-        $query = "
-            SELECT 
-                id_incidente,
-                tipo_incidente,
-                descripcion,
-                gravedad,
-                fecha_reporte,
-                estado
-            FROM Incidente
-            WHERE id_viaje = ?
-            ORDER BY fecha_reporte DESC
-        ";
-
-        $stmt = sqlsrv_query($conn, $query, [$idViaje]);
-        if (!$stmt) die(print_r(sqlsrv_errors(), true));
-
-        $result = [];
-        while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-            $result[] = $row;
+        $rows = [];
+        while ($r = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+            $rows[] = $r;
         }
-        return $result;
+        return $rows;
     }
 
-    /* Obtener un incidente por ID */
-    public static function obtenerPorId($conn, $idIncidente) {
-        $query = "SELECT * FROM Incidente WHERE id_incidente = ?";
-        $stmt = sqlsrv_query($conn, $query, [$idIncidente]);
-        if (!$stmt) die(print_r(sqlsrv_errors(), true));
-
-        return sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+    /* ============================================================
+       🔍 Obtener incidente por ID
+    ============================================================ */
+    public static function obtenerPorId($conn, int $id): ?array
+    {
+        $sql = "SELECT * FROM Incidente WHERE id_incidente = ?";
+        $stmt = sqlsrv_query($conn, $sql, [$id]);
+        if (!$stmt) {
+            throw new \Exception('Error al obtener incidente: ' . print_r(sqlsrv_errors(), true));
+        }
+        $r = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+        return $r ?: null;
     }
 
-    /* Crear un nuevo incidente */
-    public static function crear($conn, $data) {
-        $query = "
-            INSERT INTO Incidente 
-                (id_viaje, tipo_incidente, descripcion, gravedad, fecha_reporte, estado)
-            OUTPUT INSERTED.id_incidente
-            VALUES (?, ?, ?, ?, ?, ?)
+    /* ============================================================
+       ➕ Crear nuevo incidente
+    ============================================================ */
+    public static function crear($conn, array $data): int
+    {
+        $sql = "
+            INSERT INTO Incidente
+              (id_viaje, tipo_incidente, descripcion, gravedad, fecha_reporte, estado)
+            VALUES (?, ?, ?, ?, SYSDATETIME(), ?);
+            SELECT SCOPE_IDENTITY() AS id_incidente;
         ";
 
         $params = [
-            $data['id_viaje'],
-            $data['tipo_incidente'],
+            (int)($data['id_viaje'] ?? 0),
+            trim($data['tipo_incidente'] ?? 'Desconocido'),
             $data['descripcion'] ?? null,
-            $data['gravedad'],
-            $data['fecha_reporte'] ?? date('Y-m-d H:i:s'),
-            $data['estado'] ?? 'Abierto'
+            $data['gravedad'] ?? 'Media',
+            $data['estado'] ?? 'Abierto',
         ];
 
-        $stmt = sqlsrv_query($conn, $query, $params);
-        if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
+        $stmt = sqlsrv_query($conn, $sql, $params);
+        if (!$stmt) {
+            throw new \Exception('Error al crear incidente: ' . print_r(sqlsrv_errors(), true));
+        }
 
+        // Avanzar al siguiente resultado para obtener el ID
+        sqlsrv_next_result($stmt);
         sqlsrv_fetch($stmt);
-        return sqlsrv_get_field($stmt, 0);
+        $id = sqlsrv_get_field($stmt, 0);
+
+        if (!$id) {
+            throw new \Exception('No se pudo obtener el ID del incidente creado.');
+        }
+        return (int)$id;
     }
 
-    /* Actualizar un incidente */
-    public static function actualizar($conn, $id, $data) {
-        $query = "
+    /* ============================================================
+       ✏️ Actualizar incidente
+    ============================================================ */
+    public static function actualizar($conn, int $id, array $data): bool
+    {
+        $sql = "
             UPDATE Incidente
-            SET tipo_incidente = ?, descripcion = ?, gravedad = ?, fecha_reporte = ?, estado = ?
+            SET tipo_incidente = ?,
+                descripcion = ?,
+                gravedad = ?,
+                estado = ?
             WHERE id_incidente = ?
         ";
-
         $params = [
-            $data['tipo_incidente'],
-            $data['descripcion'],
-            $data['gravedad'],
-            $data['fecha_reporte'],
-            $data['estado'],
+            $data['tipo_incidente'] ?? 'Desconocido',
+            $data['descripcion'] ?? null,
+            $data['gravedad'] ?? 'Media',
+            $data['estado'] ?? 'Abierto',
             $id
         ];
 
-        $stmt = sqlsrv_query($conn, $query, $params);
-        if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
+        $stmt = sqlsrv_query($conn, $sql, $params);
+        if (!$stmt) {
+            throw new \Exception('Error al actualizar incidente: ' . print_r(sqlsrv_errors(), true));
+        }
+        return true;
     }
 
-    /* Eliminar incidente */
-    public static function eliminar($conn, $idIncidente) {
-        $query = "DELETE FROM Incidente WHERE id_incidente = ?";
-        $stmt = sqlsrv_query($conn, $query, [$idIncidente]);
-        if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
+    /* ============================================================
+       🗑️ Eliminar incidente
+    ============================================================ */
+    public static function eliminar($conn, int $id): bool
+    {
+        $stmt = sqlsrv_query($conn, "DELETE FROM Incidente WHERE id_incidente = ?", [$id]);
+        if (!$stmt) {
+            throw new \Exception('Error al eliminar incidente: ' . print_r(sqlsrv_errors(), true));
+        }
+        return true;
     }
-}
-?>
+}}

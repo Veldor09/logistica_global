@@ -1,8 +1,11 @@
 <?php
-class Factura {
-
-    /* Obtener todas las facturas con información de la orden */
-    public static function obtenerTodas($conn) {
+class Factura
+{
+    /* ============================================================
+       📋 Obtener todas las facturas (con datos de orden y cliente)
+    ============================================================ */
+    public static function obtenerTodas($conn)
+    {
         $query = "
             SELECT 
                 f.id_factura,
@@ -10,12 +13,20 @@ class Factura {
                 f.fecha_emision,
                 f.subtotal,
                 f.impuesto,
-                f.total,
+                (f.subtotal + f.impuesto) AS total,     -- <- SOLO SE LEE, NO SE MODIFICA
                 f.metodo_pago,
                 f.estado,
-                o.estado AS estado_orden
+                COALESCE(
+                    NULLIF(LTRIM(RTRIM(CONCAT(cf.nombre, ' ', cf.primer_apellido, ' ', ISNULL(cf.segundo_apellido, '')))), ''),
+                    cj.nombre_empresa,
+                    c.correo
+                ) AS cliente
             FROM Factura f
-            INNER JOIN Orden o ON f.id_orden = o.id_orden
+            INNER JOIN Orden o      ON f.id_orden = o.id_orden
+            INNER JOIN Solicitud s  ON o.id_solicitud = s.id_solicitud
+            INNER JOIN Cliente c    ON s.id_cliente = c.id_cliente
+            LEFT JOIN Cliente_Fisico   cf ON cf.id_cliente = c.id_cliente
+            LEFT JOIN Cliente_Juridico cj ON cj.id_cliente = c.id_cliente
             ORDER BY f.id_factura DESC
         ";
 
@@ -29,24 +40,41 @@ class Factura {
         return $facturas;
     }
 
-    /* Obtener factura por ID */
-    public static function obtenerPorId($conn, $id) {
+    /* ============================================================
+       🔍 Obtener una factura por su ID (con cliente y total)
+    ============================================================ */
+    public static function obtenerPorId($conn, $id)
+    {
         $query = "
             SELECT 
-                f.*, 
-                o.estado AS estado_orden
+                f.*,
+                (f.subtotal + f.impuesto) AS total,     -- <- SOLO SE LEE, NO SE MODIFICA
+                COALESCE(
+                    NULLIF(LTRIM(RTRIM(CONCAT(cf.nombre, ' ', cf.primer_apellido, ' ', ISNULL(cf.segundo_apellido, '')))), ''),
+                    cj.nombre_empresa,
+                    c.correo
+                ) AS cliente
             FROM Factura f
-            INNER JOIN Orden o ON f.id_orden = o.id_orden
+            INNER JOIN Orden o      ON f.id_orden = o.id_orden
+            INNER JOIN Solicitud s  ON o.id_solicitud = s.id_solicitud
+            INNER JOIN Cliente c    ON s.id_cliente = c.id_cliente
+            LEFT JOIN Cliente_Fisico   cf ON cf.id_cliente = c.id_cliente
+            LEFT JOIN Cliente_Juridico cj ON cj.id_cliente = c.id_cliente
             WHERE f.id_factura = ?
         ";
+
         $stmt = sqlsrv_query($conn, $query, [$id]);
         if (!$stmt) die(print_r(sqlsrv_errors(), true));
 
         return sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
     }
 
-    /* Crear nueva factura */
-    public static function crear($conn, $data) {
+    /* ============================================================
+       🧾 Crear nueva factura
+       (NO insertar la columna calculada `total`)
+    ============================================================ */
+    public static function crear($conn, $data)
+    {
         $query = "
             INSERT INTO Factura (id_orden, fecha_emision, subtotal, impuesto, metodo_pago, estado)
             OUTPUT INSERTED.id_factura
@@ -56,8 +84,8 @@ class Factura {
         $params = [
             $data['id_orden'],
             $data['fecha_emision'] ?? date('Y-m-d'),
-            $data['subtotal'] ?? 0,
-            $data['impuesto'] ?? 0,
+            (float)($data['subtotal'] ?? 0),
+            (float)($data['impuesto'] ?? 0),
             $data['metodo_pago'] ?? null,
             $data['estado'] ?? 'Emitida'
         ];
@@ -69,22 +97,30 @@ class Factura {
         return sqlsrv_get_field($stmt, 0);
     }
 
-    /* Actualizar factura */
-    public static function actualizar($conn, $id, $data) {
+    /* ============================================================
+       ✏️ Actualizar factura
+       (NO actualizar la columna calculada `total`)
+    ============================================================ */
+    public static function actualizar($conn, $id, $data)
+    {
         $query = "
             UPDATE Factura
-            SET id_orden = ?, fecha_emision = ?, subtotal = ?, impuesto = ?, 
-                metodo_pago = ?, estado = ?
+            SET id_orden = ?, 
+                fecha_emision = ?, 
+                subtotal = ?, 
+                impuesto = ?, 
+                metodo_pago = ?, 
+                estado = ?
             WHERE id_factura = ?
         ";
 
         $params = [
             $data['id_orden'],
-            $data['fecha_emision'],
-            $data['subtotal'],
-            $data['impuesto'],
-            $data['metodo_pago'],
-            $data['estado'],
+            $data['fecha_emision'] ?? date('Y-m-d'),
+            (float)($data['subtotal'] ?? 0),
+            (float)($data['impuesto'] ?? 0),
+            $data['metodo_pago'] ?? null,
+            $data['estado'] ?? 'Emitida',
             $id
         ];
 
@@ -92,11 +128,13 @@ class Factura {
         if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
     }
 
-    /* Eliminar factura */
-    public static function eliminar($conn, $id) {
+    /* ============================================================
+       🗑️ Eliminar factura
+    ============================================================ */
+    public static function eliminar($conn, $id)
+    {
         $query = "DELETE FROM Factura WHERE id_factura = ?";
         $stmt = sqlsrv_query($conn, $query, [$id]);
         if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
     }
 }
-?>

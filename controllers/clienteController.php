@@ -1,5 +1,7 @@
 <?php
-require_once __DIR__ . '/../config/db.php';
+require_once dirname(__DIR__) . '/config/db.php';
+require_once dirname(__DIR__) . '/config/auth_guard.php';
+
 require_once __DIR__ . '/../models/Cliente.php';
 
 $accion = $_GET['accion'] ?? 'listar';

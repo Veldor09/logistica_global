@@ -20,16 +20,16 @@
       <?php if (!empty($vehiculos)): ?>
         <?php foreach ($vehiculos as $v): ?>
           <tr>
-            <td><?= $v['id_vehiculo'] ?></td>
+            <td><?= htmlspecialchars($v['id_vehiculo']) ?></td>
             <td><?= htmlspecialchars($v['placa']) ?></td>
-            <td><?= htmlspecialchars($v['marca']) ?></td>
-            <td><?= htmlspecialchars($v['modelo']) ?></td>
+            <td><?= htmlspecialchars($v['marca'] ?? '-') ?></td>
+            <td><?= htmlspecialchars($v['modelo'] ?? '-') ?></td>
             <td><?= htmlspecialchars($v['tipo_camion'] ?? '-') ?></td>
             <td><?= htmlspecialchars($v['capacidad_kg'] ?? '-') ?></td>
-            <td><span class="chip <?= strtolower($v['estado']) ?>"><?= $v['estado'] ?></span></td>
+            <td><span class="chip <?= strtolower($v['estado']) ?>"><?= htmlspecialchars($v['estado']) ?></span></td>
             <td>
-              <a href="/logistica_global/controllers/vehiculoController.php?accion=editar&id=<?= $v['id_vehiculo'] ?>" class="btn small edit">✏️</a>
-              <a href="/logistica_global/controllers/vehiculoController.php?accion=eliminar&id=<?= $v['id_vehiculo'] ?>" class="btn small delete" onclick="return confirm('¿Eliminar vehículo?')">🗑️</a>
+              <a href="/logistica_global/controllers/vehiculoController.php?accion=editar&id=<?= $v['id_vehiculo'] ?>" class="btn small edit">✏️ Editar</a>
+              <a href="/logistica_global/controllers/vehiculoController.php?accion=eliminar&id=<?= $v['id_vehiculo'] ?>" class="btn small delete" onclick="return confirm('¿Eliminar vehículo?')">🗑️ Eliminar</a>
             </td>
           </tr>
         <?php endforeach; ?>

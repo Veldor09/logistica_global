@@ -1,4 +1,4 @@
-/* === Estilos generales === */
+/*  Estilos generales  */
 body {
   font-family: 'Segoe UI', Arial, sans-serif;
   background: #eef1f5;
@@ -7,7 +7,7 @@ body {
   transition: background 0.3s ease;
 }
 
-/* === HEADER PRINCIPAL === */
+/* HEADER PRINCIPAL */
 .header {
   background: linear-gradient(90deg, #003366, #0055aa);
   color: white;
@@ -67,7 +67,7 @@ body {
   font-weight: 500;
 }
 
-/* === RESPONSIVE HEADER === */
+/*  RESPONSIVE HEADER  */
 @media (max-width: 900px) {
   .topnav {
     display: none;
@@ -78,7 +78,7 @@ body {
   }
 }
 
-/* === Header logout (opcional futuro) === */
+/*  Header logout (opcional futuro)  */
 .header-user {
   font-weight: bold;
 }
@@ -97,14 +97,14 @@ body {
   background: #990000;
 }
 
-/* === Layout general === */
+/*  Layout general  */
 .layout {
   display: flex;
   min-height: 100vh;
   margin-top: 70px; /* espacio por header fijo */
 }
 
-/* === SIDEBAR === */
+/*  SIDEBAR  */
 .sidebar {
   background: #003366;
   color: white;
@@ -149,7 +149,7 @@ body {
   background: #0055aa;
 }
 
-/* === CONTENIDO PRINCIPAL === */
+/*  CONTENIDO PRINCIPAL  */
 .content {
   flex: 1;
   padding: 40px 30px 60px 290px;
@@ -168,7 +168,7 @@ p {
   margin-bottom: 20px;
 }
 
-/* === TARJETAS DEL DASHBOARD === */
+/*  TARJETAS DEL DASHBOARD  */
 .cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
@@ -211,7 +211,7 @@ p {
   color: #555;
 }
 
-/* === COLORES PERSONALIZADOS TARJETAS === */
+/*  COLORES PERSONALIZADOS TARJETAS  */
 .card.blue i { color: #0066cc; }
 .card.green i { color: #009966; }
 .card.orange i { color: #ff8800; }
@@ -219,7 +219,7 @@ p {
 .card.purple i { color: #800080; }
 .card.teal i { color: #0099cc; }
 
-/* === FOOTER === */
+/*  FOOTER  */
 .footer {
   text-align: center;
   padding: 15px;
@@ -229,7 +229,7 @@ p {
   border-top: 3px solid #002244;
 }
 
-/* === RESPONSIVE DESIGN === */
+/*  RESPONSIVE DESIGN  */
 @media (max-width: 900px) {
   .sidebar {
     position: fixed;
@@ -270,7 +270,7 @@ p {
   }
 }
 
-/* === ESTILOS PARA VISTAS CRUD === */
+/*  ESTILOS PARA VISTAS CRUD  */
 .container {
   max-width: 1100px;
   margin: 20px auto;
@@ -325,7 +325,7 @@ table tr:nth-child(even) {
   background: #f4f6f8;
 }
 
-/* === FORMULARIOS === */
+/*  FORMULARIOS  */
 form {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -359,7 +359,7 @@ form button:hover {
   background: #003f80;
 }
 
-/* === SECCIONES === */
+/*  SECCIONES  */
 h3, h4 {
   grid-column: 1 / -1;
   margin-top: 15px;
@@ -368,7 +368,7 @@ h3, h4 {
   padding-bottom: 4px;
 }
 
-/* === BOTÓN HAMBURGUESA === */
+/*  BOTÓN HAMBURGUESA  */
 .menu-toggle {
   background: #0055aa;
   color: white;
@@ -412,9 +412,7 @@ h3, h4 {
   }
 }
 
-/* ============================================================
-   ALERTAS GLOBALES DEL SISTEMA
-   ============================================================ */
+/*  ALERTAS GLOBALES DEL SISTEMA */
 .alert {
   width: 90%;
   max-width: 850px;

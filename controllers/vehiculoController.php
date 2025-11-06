@@ -1,92 +1,177 @@
 <?php
-require_once __DIR__ . '/../config/db.php';
-require_once __DIR__ . '/../models/Vehiculo.php';
+ini_set('display_errors', '1');
+error_reporting(E_ALL);
 
-$accion = $_GET['accion'] ?? 'listar';
-$contenido = '';
-$titulo = 'Vehículos';
+$BASE_PATH = dirname(__DIR__);
 
-try {
-    switch ($accion) {
+// 🔧 Conexión primero
+require_once $BASE_PATH . '/config/db.php';
 
-        /* ============================================================
-           🟢 CREAR VEHÍCULO
-        ============================================================ */
-        case 'crear':
-            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                Vehiculo::crear($conn, $_POST);
-                header("Location: /logistica_global/controllers/vehiculoController.php?success=1");
-                exit;
-            }
+// 🧱 Modelos
+require_once $BASE_PATH . '/models/Vehiculo.php';
+require_once $BASE_PATH . '/models/TipoCamion.php';
 
-            // Tipos de camión para el select
-            $stmt = sqlsrv_query($conn, "SELECT id_tipo_camion, nombre_tipo FROM Tipo_Camion ORDER BY nombre_tipo");
-            $tipos = [];
-            if ($stmt) while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) $tipos[] = $row;
+// 🔒 Autenticación
+require_once $BASE_PATH . '/config/auth_guard.php';
 
-            ob_start();
-            include __DIR__ . '/../views/vehiculos/crear.php';
-            $contenido = ob_get_clean();
-            $titulo = 'Registrar Vehículo';
-            break;
-
-        /* ============================================================
-           ✏️ EDITAR VEHÍCULO
-        ============================================================ */
-        case 'editar':
-            $id = $_GET['id'] ?? null;
-            if (!$id) {
-                header("Location: /logistica_global/controllers/vehiculoController.php");
-                exit;
-            }
-
-            if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-                Vehiculo::actualizar($conn, $id, $_POST);
-                header("Location: /logistica_global/controllers/vehiculoController.php?updated=1");
-                exit;
-            }
-
-            $vehiculo = Vehiculo::obtenerPorId($conn, $id);
-            $stmt = sqlsrv_query($conn, "SELECT id_tipo_camion, nombre_tipo FROM Tipo_Camion ORDER BY nombre_tipo");
-            $tipos = [];
-            if ($stmt) while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) $tipos[] = $row;
-
-            ob_start();
-            include __DIR__ . '/../views/vehiculos/editar.php';
-            $contenido = ob_get_clean();
-            $titulo = 'Editar Vehículo';
-            break;
-
-        /* ============================================================
-           🔴 ELIMINAR VEHÍCULO
-        ============================================================ */
-        case 'eliminar':
-            $id = $_GET['id'] ?? null;
-            if ($id) {
-                Vehiculo::eliminar($conn, $id);
-                header("Location: /logistica_global/controllers/vehiculoController.php?deleted=1");
-                exit;
-            }
-            header("Location: /logistica_global/controllers/vehiculoController.php");
-            exit;
-
-        /* ============================================================
-           📋 LISTAR VEHÍCULOS
-        ============================================================ */
-        default:
-            $vehiculos = Vehiculo::obtenerTodos($conn);
-            ob_start();
-            include __DIR__ . '/../views/vehiculos/listar.php';
-            $contenido = ob_get_clean();
-            $titulo = 'Lista de Vehículos';
-            break;
-    }
-
-} catch (Throwable $e) {
-    error_log("Error controlador Vehículos: " . $e->getMessage());
-    $contenido = "<div class='alert danger'>❌ Error al procesar el vehículo.</div>";
-    $titulo = 'Error';
+/* ===========================================================
+   🌐 Función para renderizar vistas con layout global
+=========================================================== */
+function view($ruta, $data = []) {
+    extract($data);
+    $BASE_PATH = dirname(__DIR__);
+    ob_start();
+    include $BASE_PATH . "/views/$ruta";
+    $contenido = ob_get_clean();
+    include $BASE_PATH . '/views/layout.php';
 }
 
-include __DIR__ . '/../views/layout.php';
+/* ===========================================================
+   🔁 Redirección limpia
+=========================================================== */
+function redirect($path) {
+    header("Location: $path");
+    exit;
+}
+
+/* ===========================================================
+   🔀 Controlador principal
+=========================================================== */
+
+// 🔒 Valor defensivo de $accion
+$accion = isset($_GET['accion']) && $_GET['accion'] !== '' ? $_GET['accion'] : 'listar';
+
+switch ($accion) {
+    case 'listar':
+        listarVehiculos($conn);
+        break;
+
+    case 'crear':
+        ($_SERVER['REQUEST_METHOD'] === 'POST')
+            ? crearVehiculoPost($conn)
+            : crearVehiculoGet($conn);
+        break;
+
+    case 'editar':
+        ($_SERVER['REQUEST_METHOD'] === 'POST')
+            ? editarVehiculoPost($conn)
+            : editarVehiculoGet($conn);
+        break;
+
+    case 'eliminar':
+        eliminarVehiculo($conn);
+        break;
+
+    default:
+        listarVehiculos($conn); // ✅ fallback garantizado
+        break;
+}
+
+/* ===========================================================
+   📋 Listar vehículos
+=========================================================== */
+function listarVehiculos($conn) {
+    try {
+        $vehiculos = Vehiculo::obtenerTodos($conn);
+        view('vehiculos/listar.php', [
+            'titulo' => 'Gestión de Vehículos',
+            'vehiculos' => $vehiculos
+        ]);
+    } catch (Throwable $e) {
+        echo "<pre>❌ Error al listar vehículos:\n" . $e->getMessage() . "</pre>";
+    }
+}
+
+/* ===========================================================
+   ➕ Crear vehículo (GET)
+=========================================================== */
+function crearVehiculoGet($conn) {
+    $tipos = TipoCamion::obtenerTodos($conn);
+    view('vehiculos/crear.php', [
+        'titulo' => 'Registrar Vehículo',
+        'tipos' => $tipos
+    ]);
+}
+
+/* ===========================================================
+   ➕ Crear vehículo (POST)
+=========================================================== */
+function crearVehiculoPost($conn) {
+    try {
+        Vehiculo::crear($conn, $_POST);
+        redirect('/logistica_global/controllers/vehiculoController.php?accion=listar');
+    } catch (Throwable $e) {
+        $tipos = TipoCamion::obtenerTodos($conn);
+        $errores['general'] = $e->getMessage();
+        view('vehiculos/crear.php', [
+            'titulo' => 'Registrar Vehículo',
+            'tipos' => $tipos,
+            'errores' => $errores
+        ]);
+    }
+}
+
+/* ===========================================================
+   ✏️ Editar vehículo
+=========================================================== */
+function editarVehiculoGet($conn) {
+    $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+
+    // 🚫 Si no hay ID o no existe el vehículo, volver a lista
+    if ($id <= 0) {
+        redirect('/logistica_global/controllers/vehiculoController.php?accion=listar');
+        return;
+    }
+
+    $vehiculo = Vehiculo::obtenerPorId($conn, $id);
+    if (!$vehiculo) {
+        redirect('/logistica_global/controllers/vehiculoController.php?accion=listar');
+        return;
+    }
+
+    $tipos = TipoCamion::obtenerTodos($conn);
+    view('vehiculos/editar.php', [
+        'titulo' => 'Editar Vehículo',
+        'vehiculo' => $vehiculo,
+        'tipos' => $tipos
+    ]);
+}
+
+function editarVehiculoPost($conn) {
+    $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+    if ($id <= 0) {
+        redirect('/logistica_global/controllers/vehiculoController.php?accion=listar');
+        return;
+    }
+
+    try {
+        Vehiculo::actualizar($conn, $id, $_POST);
+        redirect('/logistica_global/controllers/vehiculoController.php?accion=listar');
+    } catch (Throwable $e) {
+        $vehiculo = $_POST;
+        $tipos = TipoCamion::obtenerTodos($conn);
+        $errores['general'] = $e->getMessage();
+        view('vehiculos/editar.php', [
+            'titulo' => 'Editar Vehículo',
+            'vehiculo' => $vehiculo,
+            'tipos' => $tipos,
+            'errores' => $errores
+        ]);
+    }
+}
+
+/* ===========================================================
+   🗑️ Eliminar vehículo
+=========================================================== */
+function eliminarVehiculo($conn) {
+    $id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+    if ($id > 0) {
+        try {
+            Vehiculo::eliminar($conn, $id);
+        } catch (Throwable $e) {
+            die("<pre>Error al eliminar vehículo:\n{$e->getMessage()}</pre>");
+        }
+    }
+    redirect('/logistica_global/controllers/vehiculoController.php?accion=listar');
+}
 ?>

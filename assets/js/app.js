@@ -1,16 +1,12 @@
-// ===========================================================
-// ✅ Script principal del panel Logística Global S.A.
+// Script principal del panel Logística Global S.A.
 // Controla el sidebar, el modo responsive, las alertas y la interacción del menú
-// ===========================================================
 
 document.addEventListener("DOMContentLoaded", () => {
   const toggleBtn = document.getElementById("menu-toggle");
   const sidebar = document.getElementById("sidebar");
   const body = document.body;
 
-  /* ============================================================
-     SIDEBAR RESPONSIVE
-  ============================================================ */
+  /*  SIDEBAR RESPONSIVE */
   if (toggleBtn && sidebar) {
     // Alternar visibilidad
     const toggleSidebar = () => {
@@ -46,9 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  /* ============================================================
-     ALERTAS GLOBALES (Desvanecer automáticamente)
-  ============================================================ */
+  /*  ALERTAS GLOBALES (Desvanecer automáticamente) */
   const alert = document.querySelector(".alert");
   if (alert) {
     // Desaparecer después de 4 segundos

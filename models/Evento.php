@@ -4,9 +4,12 @@
 if (!class_exists('Evento')) {
 class Evento
 {
+    /* =======================================================
+       📋 Obtener todos los eventos (con tipo y viaje)
+    ======================================================= */
     public static function obtenerTodos($conn)
     {
-        $query = "
+        $sql = "
             SELECT 
                 e.id_evento,
                 e.id_viaje,
@@ -24,26 +27,26 @@ class Evento
             ORDER BY e.fecha DESC
         ";
 
-        $stmt = sqlsrv_query($conn, $query);
-        if (!$stmt) {
-            throw new Exception(print_r(sqlsrv_errors(), true));
-        }
+        $stmt = sqlsrv_query($conn, $sql);
+        if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
 
         $eventos = [];
-        while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-            // Convertir fechas a string legible
-            if (isset($row['fecha']) && $row['fecha'] instanceof DateTime) {
-                $row['fecha'] = $row['fecha']->format('Y-m-d H:i:s');
+        while ($r = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+            if (!empty($r['fecha']) && $r['fecha'] instanceof DateTime) {
+                $r['fecha'] = $r['fecha']->format('Y-m-d H:i:s');
             }
-            $eventos[] = $row;
+            $eventos[] = $r;
         }
-
         return $eventos;
     }
 
+    /* =======================================================
+       🔍 Obtener eventos por viaje
+       (para usar en Detalle del Viaje)
+    ======================================================= */
     public static function obtenerPorViaje($conn, $idViaje)
     {
-        $query = "
+        $sql = "
             SELECT 
                 e.id_evento,
                 e.id_tipo_evento,
@@ -58,25 +61,25 @@ class Evento
             ORDER BY e.fecha DESC
         ";
 
-        $stmt = sqlsrv_query($conn, $query, [$idViaje]);
-        if (!$stmt) {
-            throw new Exception(print_r(sqlsrv_errors(), true));
-        }
+        $stmt = sqlsrv_query($conn, $sql, [$idViaje]);
+        if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
 
         $eventos = [];
-        while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-            if (isset($row['fecha']) && $row['fecha'] instanceof DateTime) {
-                $row['fecha'] = $row['fecha']->format('Y-m-d H:i:s');
+        while ($r = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+            if (!empty($r['fecha']) && $r['fecha'] instanceof DateTime) {
+                $r['fecha'] = $r['fecha']->format('Y-m-d H:i:s');
             }
-            $eventos[] = $row;
+            $eventos[] = $r;
         }
-
         return $eventos;
     }
 
+    /* =======================================================
+       🔍 Obtener evento por ID
+    ======================================================= */
     public static function obtenerPorId($conn, $idEvento)
     {
-        $query = "
+        $sql = "
             SELECT 
                 e.id_evento,
                 e.id_viaje,
@@ -91,31 +94,28 @@ class Evento
             WHERE e.id_evento = ?
         ";
 
-        $stmt = sqlsrv_query($conn, $query, [$idEvento]);
-        if (!$stmt) {
-            throw new Exception(print_r(sqlsrv_errors(), true));
-        }
+        $stmt = sqlsrv_query($conn, $sql, [$idEvento]);
+        if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
 
-        $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
-        if ($row && $row['fecha'] instanceof DateTime) {
-            $row['fecha'] = $row['fecha']->format('Y-m-d H:i:s');
+        $r = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+        if (!empty($r['fecha']) && $r['fecha'] instanceof DateTime) {
+            $r['fecha'] = $r['fecha']->format('Y-m-d H:i:s');
         }
-        return $row ?: null;
+        return $r ?: null;
     }
 
+    /* =======================================================
+       🆕 Crear evento
+    ======================================================= */
     public static function crear($conn, $data)
     {
-        $query = "
+        $sql = "
             INSERT INTO Evento (id_viaje, id_tipo_evento, fecha, observaciones, ubicacion, estado)
             OUTPUT INSERTED.id_evento
             VALUES (?, ?, ?, ?, ?, ?)
         ";
 
-        // Si no se especifica fecha, usar la del sistema SQL
-        $fecha = $data['fecha'] ?? null;
-        if ($fecha === null || $fecha === '') {
-            $fecha = date('Y-m-d H:i:s');
-        }
+        $fecha = $data['fecha'] ?? date('Y-m-d H:i:s');
 
         $params = [
             $data['id_viaje'],
@@ -126,18 +126,19 @@ class Evento
             $data['estado'] ?? 'Registrado'
         ];
 
-        $stmt = sqlsrv_query($conn, $query, $params);
-        if (!$stmt) {
-            throw new Exception(print_r(sqlsrv_errors(), true));
-        }
+        $stmt = sqlsrv_query($conn, $sql, $params);
+        if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
 
-        $row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
-        return $row ? (int)$row['id_evento'] : null;
+        sqlsrv_fetch($stmt);
+        return sqlsrv_get_field($stmt, 0);
     }
 
+    /* =======================================================
+       ✏️ Actualizar evento
+    ======================================================= */
     public static function actualizar($conn, $idEvento, $data)
     {
-        $query = "
+        $sql = "
             UPDATE Evento
             SET id_viaje = ?, id_tipo_evento = ?, fecha = ?, observaciones = ?, ubicacion = ?, estado = ?
             WHERE id_evento = ?
@@ -146,27 +147,26 @@ class Evento
         $params = [
             $data['id_viaje'],
             $data['id_tipo_evento'],
-            $data['fecha'],
-            $data['observaciones'],
-            $data['ubicacion'],
-            $data['estado'],
+            $data['fecha'] ?? date('Y-m-d H:i:s'),
+            $data['observaciones'] ?? null,
+            $data['ubicacion'] ?? null,
+            $data['estado'] ?? 'Registrado',
             $idEvento
         ];
 
-        $stmt = sqlsrv_query($conn, $query, $params);
-        if (!$stmt) {
-            throw new Exception(print_r(sqlsrv_errors(), true));
-        }
+        $stmt = sqlsrv_query($conn, $sql, $params);
+        if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
         return true;
     }
 
+    /* =======================================================
+       🗑️ Eliminar evento
+    ======================================================= */
     public static function eliminar($conn, $idEvento)
     {
-        $query = "DELETE FROM Evento WHERE id_evento = ?";
-        $stmt = sqlsrv_query($conn, $query, [$idEvento]);
-        if (!$stmt) {
-            throw new Exception(print_r(sqlsrv_errors(), true));
-        }
+        $sql = "DELETE FROM Evento WHERE id_evento = ?";
+        $stmt = sqlsrv_query($conn, $sql, [$idEvento]);
+        if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
         return true;
     }
 }

@@ -1,76 +1,132 @@
 <?php
 require_once __DIR__ . '/ParticipanteSolicitud.php';
 
-class Solicitud {
-
+class Solicitud
+{
     /* ============================================================
-       📋 Obtener todas las solicitudes (con remitente y destinatario)
+       📋 Disponibles para crear orden
     ============================================================ */
-    public static function obtenerTodos($conn) {
-        $query = "
+    public static function obtenerDisponibles($conn)
+    {
+        $sql = "
             SELECT 
                 s.id_solicitud,
-                s.tipo_servicio,
-                s.descripcion,
                 s.origen,
                 s.destino_general,
-                s.estado,
-                s.prioridad,
-                s.fecha_solicitud,
-                remitente.correo AS correo_remitente,
-                remitente.tipo_identificacion AS tipo_remitente,
-                destinatario.correo AS correo_destinatario,
-                destinatario.tipo_identificacion AS tipo_destinatario
+                s.estado
             FROM Solicitud s
-            INNER JOIN Cliente remitente ON remitente.id_cliente = s.id_cliente
-            LEFT JOIN Participante_Solicitud psDest 
-                ON psDest.id_solicitud = s.id_solicitud AND psDest.rol = 'Destinatario'
-            LEFT JOIN Cliente destinatario 
-                ON destinatario.id_cliente = psDest.id_cliente
+            WHERE s.estado = 'Pendiente'
             ORDER BY s.id_solicitud DESC
         ";
+        $stmt = sqlsrv_query($conn, $sql);
+        if (!$stmt) { throw new Exception(print_r(sqlsrv_errors(), true)); }
 
-        $stmt = sqlsrv_query($conn, $query);
-        if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
-
-        $solicitudes = [];
-        while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-            $solicitudes[] = $row;
+        $rows = [];
+        while ($r = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+            $rows[] = $r;
         }
-        return $solicitudes;
+        return $rows;
     }
 
     /* ============================================================
-       🔍 Obtener una solicitud por ID (con remitente y destinatario)
+       📋 Listar todas (con remitente/destinatario)
     ============================================================ */
-    public static function obtenerPorId($conn, $id) {
-        $query = "
-            SELECT 
-                s.*,
-                remitente.correo AS correo_remitente,
-                remitente.tipo_identificacion AS tipo_remitente,
-                destinatario.id_cliente AS id_destinatario,
-                destinatario.correo AS correo_destinatario,
-                destinatario.tipo_identificacion AS tipo_destinatario
-            FROM Solicitud s
-            INNER JOIN Cliente remitente ON remitente.id_cliente = s.id_cliente
-            LEFT JOIN Participante_Solicitud psDest 
-                ON psDest.id_solicitud = s.id_solicitud AND psDest.rol = 'Destinatario'
-            LEFT JOIN Cliente destinatario 
-                ON destinatario.id_cliente = psDest.id_cliente
-            WHERE s.id_solicitud = ?
-        ";
+public static function obtenerTodos($conn)
+{
+    $query = "
+        SELECT 
+            s.id_solicitud,
+            s.tipo_servicio,
+            s.descripcion,
+            s.origen,
+            s.destino_general,
+            s.estado,
+            s.prioridad,
+            s.fecha_solicitud,
 
-        $stmt = sqlsrv_query($conn, $query, [$id]);
-        if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
+            -- 🔹 Datos del remitente (cliente principal)
+            cRem.id_cliente AS id_remitente,
+            ISNULL(cfRem.nombre, cjRem.nombre_empresa) AS nombre_remitente,
+            ISNULL(cfRem.cedula, cjRem.cedula_juridica) AS cedula_remitente,
+            cRem.correo AS correo_remitente,
+            cRem.tipo_identificacion AS tipo_remitente,
 
-        return sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+            -- 🔹 Datos del destinatario (desde Participante_Solicitud)
+            cDest.id_cliente AS id_destinatario,
+            ISNULL(cfDest.nombre, cjDest.nombre_empresa) AS nombre_destinatario,
+            ISNULL(cfDest.cedula, cjDest.cedula_juridica) AS cedula_destinatario,
+            cDest.correo AS correo_destinatario,
+            cDest.tipo_identificacion AS tipo_destinatario
+
+        FROM Solicitud s
+        INNER JOIN Cliente cRem ON cRem.id_cliente = s.id_cliente
+        LEFT JOIN Cliente_Fisico cfRem ON cfRem.id_cliente = cRem.id_cliente
+        LEFT JOIN Cliente_Juridico cjRem ON cjRem.id_cliente = cRem.id_cliente
+
+        LEFT JOIN Participante_Solicitud psDest 
+            ON psDest.id_solicitud = s.id_solicitud AND psDest.rol = 'Destinatario'
+        LEFT JOIN Cliente cDest ON cDest.id_cliente = psDest.id_cliente
+        LEFT JOIN Cliente_Fisico cfDest ON cfDest.id_cliente = cDest.id_cliente
+        LEFT JOIN Cliente_Juridico cjDest ON cjDest.id_cliente = cDest.id_cliente
+
+        ORDER BY s.id_solicitud DESC
+    ";
+
+    $stmt = sqlsrv_query($conn, $query);
+    if (!$stmt) { throw new Exception(print_r(sqlsrv_errors(), true)); }
+
+    $solicitudes = [];
+    while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+        $solicitudes[] = $row;
     }
+    return $solicitudes;
+}
+
 
     /* ============================================================
-       🟢 Crear solicitud con remitente y destinatario
+       🔍 Obtener por ID (con remitente/destinatario)
     ============================================================ */
-    public static function crear($conn, $data) {
+public static function obtenerPorId($conn, $id)
+{
+    $query = "
+        SELECT 
+            s.*,
+
+            cRem.id_cliente AS id_remitente,
+            ISNULL(cfRem.nombre, cjRem.nombre_empresa) AS nombre_remitente,
+            ISNULL(cfRem.cedula, cjRem.cedula_juridica) AS cedula_remitente,
+            cRem.correo AS correo_remitente,
+
+            cDest.id_cliente AS id_destinatario,
+            ISNULL(cfDest.nombre, cjDest.nombre_empresa) AS nombre_destinatario,
+            ISNULL(cfDest.cedula, cjDest.cedula_juridica) AS cedula_destinatario,
+            cDest.correo AS correo_destinatario
+
+        FROM Solicitud s
+        INNER JOIN Cliente cRem ON cRem.id_cliente = s.id_cliente
+        LEFT JOIN Cliente_Fisico cfRem ON cfRem.id_cliente = cRem.id_cliente
+        LEFT JOIN Cliente_Juridico cjRem ON cjRem.id_cliente = cRem.id_cliente
+
+        LEFT JOIN Participante_Solicitud psDest 
+            ON psDest.id_solicitud = s.id_solicitud AND psDest.rol = 'Destinatario'
+        LEFT JOIN Cliente cDest ON cDest.id_cliente = psDest.id_cliente
+        LEFT JOIN Cliente_Fisico cfDest ON cfDest.id_cliente = cDest.id_cliente
+        LEFT JOIN Cliente_Juridico cjDest ON cjDest.id_cliente = cDest.id_cliente
+
+        WHERE s.id_solicitud = ?
+    ";
+    $stmt = sqlsrv_query($conn, $query, [$id]);
+    if (!$stmt) { throw new Exception(print_r(sqlsrv_errors(), true)); }
+
+    return sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+}
+
+
+    /* ============================================================
+       🟢 Crear
+    ============================================================ */
+    public static function crear($conn, $data)
+    {
         $query = "
             INSERT INTO Solicitud (
                 id_cliente, tipo_servicio, descripcion, origen, destino_general, 
@@ -79,9 +135,8 @@ class Solicitud {
             OUTPUT INSERTED.id_solicitud
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, SYSDATETIME())
         ";
-
         $params = [
-            $data['id_cliente'], // Remitente
+            $data['id_cliente'],
             $data['tipo_servicio'],
             $data['descripcion'] ?? null,
             $data['origen'] ?? null,
@@ -90,30 +145,28 @@ class Solicitud {
             $data['prioridad'] ?? 'Normal',
             $data['observaciones'] ?? null
         ];
-
         $stmt = sqlsrv_query($conn, $query, $params);
-        if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
+        if (!$stmt) { throw new Exception(print_r(sqlsrv_errors(), true)); }
 
         sqlsrv_fetch($stmt);
         $idSolicitud = sqlsrv_get_field($stmt, 0);
 
-        // ✅ Asociar destinatario si fue seleccionado
         if (!empty($data['id_destinatario']) && $data['id_destinatario'] != $data['id_cliente']) {
             ParticipanteSolicitud::crear($conn, [
-                'id_solicitud' => $idSolicitud,
-                'id_cliente' => $data['id_destinatario'],
-                'rol' => 'Destinatario',
+                'id_solicitud'  => $idSolicitud,
+                'id_cliente'    => $data['id_destinatario'],
+                'rol'           => 'Destinatario',
                 'observaciones' => 'Destinatario principal de la solicitud'
             ]);
         }
-
         return $idSolicitud;
     }
 
     /* ============================================================
-       ✏️ Actualizar solicitud y destinatario
+       ✏️ Actualizar
     ============================================================ */
-    public static function actualizar($conn, $id, $data) {
+    public static function actualizar($conn, $id, $data)
+    {
         $query = "
             UPDATE Solicitud
             SET 
@@ -126,7 +179,6 @@ class Solicitud {
                 observaciones = ?
             WHERE id_solicitud = ?
         ";
-
         $params = [
             $data['tipo_servicio'],
             $data['descripcion'] ?? null,
@@ -137,22 +189,16 @@ class Solicitud {
             $data['observaciones'] ?? null,
             $id
         ];
-
         $stmt = sqlsrv_query($conn, $query, $params);
-        if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
+        if (!$stmt) { throw new Exception(print_r(sqlsrv_errors(), true)); }
 
-        // ✅ Actualizar destinatario si corresponde
         if (!empty($data['id_destinatario'])) {
-            // Eliminar destinatario previo
-            $del = "DELETE FROM Participante_Solicitud WHERE id_solicitud = ? AND rol = 'Destinatario'";
-            sqlsrv_query($conn, $del, [$id]);
-
-            // Evitar duplicar remitente como destinatario
+            sqlsrv_query($conn, "DELETE FROM Participante_Solicitud WHERE id_solicitud = ? AND rol = 'Destinatario'", [$id]);
             if ($data['id_destinatario'] != $data['id_cliente']) {
                 ParticipanteSolicitud::crear($conn, [
-                    'id_solicitud' => $id,
-                    'id_cliente' => $data['id_destinatario'],
-                    'rol' => 'Destinatario',
+                    'id_solicitud'  => $id,
+                    'id_cliente'    => $data['id_destinatario'],
+                    'rol'           => 'Destinatario',
                     'observaciones' => 'Destinatario actualizado'
                 ]);
             }
@@ -160,18 +206,12 @@ class Solicitud {
     }
 
     /* ============================================================
-       🔴 Eliminar solicitud y sus participantes
+       🔴 Eliminar
     ============================================================ */
-    public static function eliminar($conn, $id) {
-        // Borrar participantes asociados primero
-        $delPs = "DELETE FROM Participante_Solicitud WHERE id_solicitud = ?";
-        sqlsrv_query($conn, $delPs, [$id]);
-
-        // Luego borrar la solicitud
-        $query = "DELETE FROM Solicitud WHERE id_solicitud = ?";
-        $stmt = sqlsrv_query($conn, $query, [$id]);
-
-        if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
+    public static function eliminar($conn, $id)
+    {
+        sqlsrv_query($conn, "DELETE FROM Participante_Solicitud WHERE id_solicitud = ?", [$id]);
+        $stmt = sqlsrv_query($conn, "DELETE FROM Solicitud WHERE id_solicitud = ?", [$id]);
+        if (!$stmt) { throw new Exception(print_r(sqlsrv_errors(), true)); }
     }
 }
-?>

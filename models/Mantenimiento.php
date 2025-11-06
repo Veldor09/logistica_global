@@ -1,73 +1,42 @@
 <?php
 class Mantenimiento {
 
-    /* Obtener todos los mantenimientos (con vehículo y tipo de mantenimiento) */
+    /* ===========================================================
+       📋 Obtener todos los mantenimientos (con nombre de vehículo y tipo)
+    ============================================================ */
     public static function obtenerTodos($conn) {
-        $query = "
+        $sql = "
             SELECT 
                 m.id_mantenimiento,
-                m.id_vehiculo,
-                m.id_tipo_mantenimiento,
-                v.placa,
+                v.placa AS vehiculo,
                 tm.nombre AS tipo_mantenimiento,
                 m.fecha,
                 m.descripcion,
                 m.costo,
-                m.estado,
-                m.observaciones
+                m.estado
             FROM Mantenimiento m
             INNER JOIN Vehiculo v ON m.id_vehiculo = v.id_vehiculo
             INNER JOIN Tipo_Mantenimiento tm ON m.id_tipo_mantenimiento = tm.id_tipo_mantenimiento
-            ORDER BY m.id_mantenimiento DESC
-        ";
-
-        $stmt = sqlsrv_query($conn, $query);
-        if (!$stmt) die(print_r(sqlsrv_errors(), true));
-
-        $mantenimientos = [];
-        while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-            $mantenimientos[] = $row;
-        }
-        return $mantenimientos;
-    }
-
-    /* Obtener mantenimientos por vehículo */
-    public static function obtenerPorVehiculo($conn, $idVehiculo) {
-        $query = "
-            SELECT 
-                m.*, 
-                tm.nombre AS tipo_mantenimiento
-            FROM Mantenimiento m
-            INNER JOIN Tipo_Mantenimiento tm ON m.id_tipo_mantenimiento = tm.id_tipo_mantenimiento
-            WHERE m.id_vehiculo = ?
             ORDER BY m.fecha DESC
         ";
 
-        $stmt = sqlsrv_query($conn, $query, [$idVehiculo]);
-        if (!$stmt) die(print_r(sqlsrv_errors(), true));
+        $stmt = sqlsrv_query($conn, $sql);
+        if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
 
-        $result = [];
+        $data = [];
         while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-            $result[] = $row;
+            $data[] = $row;
         }
-        return $result;
+        return $data;
     }
 
-    /* Obtener un mantenimiento por ID */
-    public static function obtenerPorId($conn, $id) {
-        $query = "SELECT * FROM Mantenimiento WHERE id_mantenimiento = ?";
-        $stmt = sqlsrv_query($conn, $query, [$id]);
-        if (!$stmt) die(print_r(sqlsrv_errors(), true));
-
-        return sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
-    }
-
-    /* Crear mantenimiento */
-    public static function crear($conn, $data) {
-        $query = "
+    /* ===========================================================
+       ➕ Insertar mantenimiento
+    ============================================================ */
+    public static function insertar($conn, $data) {
+        $sql = "
             INSERT INTO Mantenimiento 
-                (id_vehiculo, id_tipo_mantenimiento, fecha, descripcion, costo, estado, observaciones)
-            OUTPUT INSERTED.id_mantenimiento
+            (id_vehiculo, id_tipo_mantenimiento, fecha, descripcion, costo, estado, observaciones)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ";
 
@@ -76,24 +45,36 @@ class Mantenimiento {
             $data['id_tipo_mantenimiento'],
             $data['fecha'] ?? date('Y-m-d'),
             $data['descripcion'] ?? null,
-            $data['costo'] ?? null,
+            $data['costo'] ?? 0,
             $data['estado'] ?? 'Activo',
             $data['observaciones'] ?? null
         ];
 
-        $stmt = sqlsrv_query($conn, $query, $params);
+        $stmt = sqlsrv_query($conn, $sql, $params);
         if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
-
-        sqlsrv_fetch($stmt);
-        return sqlsrv_get_field($stmt, 0);
+        return true;
     }
 
-    /* Actualizar mantenimiento */
-    public static function actualizar($conn, $id, $data) {
-        $query = "
+    /* ===========================================================
+       🔍 Obtener mantenimiento por ID
+    ============================================================ */
+    public static function obtenerPorId($conn, $id) {
+        $sql = "
+            SELECT * FROM Mantenimiento WHERE id_mantenimiento = ?
+        ";
+        $stmt = sqlsrv_query($conn, $sql, [$id]);
+        if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
+        return sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
+    }
+
+    /* ===========================================================
+       ✏️ Actualizar mantenimiento
+    ============================================================ */
+    public static function actualizar($conn, $data) {
+        $sql = "
             UPDATE Mantenimiento
-            SET id_vehiculo = ?, id_tipo_mantenimiento = ?, fecha = ?, 
-                descripcion = ?, costo = ?, estado = ?, observaciones = ?
+            SET id_vehiculo = ?, id_tipo_mantenimiento = ?, fecha = ?, descripcion = ?, 
+                costo = ?, estado = ?, observaciones = ?
             WHERE id_mantenimiento = ?
         ";
 
@@ -105,18 +86,22 @@ class Mantenimiento {
             $data['costo'],
             $data['estado'],
             $data['observaciones'],
-            $id
+            $data['id_mantenimiento']
         ];
 
-        $stmt = sqlsrv_query($conn, $query, $params);
+        $stmt = sqlsrv_query($conn, $sql, $params);
         if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
+        return true;
     }
 
-    /* Eliminar mantenimiento */
+    /* ===========================================================
+       🗑️ Eliminar mantenimiento
+    ============================================================ */
     public static function eliminar($conn, $id) {
-        $query = "DELETE FROM Mantenimiento WHERE id_mantenimiento = ?";
-        $stmt = sqlsrv_query($conn, $query, [$id]);
+        $sql = "DELETE FROM Mantenimiento WHERE id_mantenimiento = ?";
+        $stmt = sqlsrv_query($conn, $sql, [$id]);
         if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
+        return true;
     }
 }
 ?>

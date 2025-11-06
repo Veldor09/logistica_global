@@ -1,73 +1,52 @@
-<div class="form-container bg-white p-6 rounded-2xl shadow-md border">
-  <h2 class="text-2xl font-bold text-center mb-6">Registrar Nueva Orden de Transporte</h2>
+<div class="container">
+  <h1>➕ Registrar Orden</h1>
 
-  <form method="POST" action="/logistica_global/controllers/ordenController.php?accion=crear" class="space-y-4">
+  <form method="POST" action="/logistica_global/controllers/ordenController.php?accion=crear">
+    <label>ID Solicitud:</label>
+    <select name="id_solicitud" id="id_solicitud" required>
+      <option value="">-- Seleccionar solicitud --</option>
+      <?php foreach ($solicitudes as $s): ?>
+        <option 
+          value="<?= $s['id_solicitud'] ?>"
+          data-origen="<?= htmlspecialchars($s['origen']) ?>"
+          data-destino="<?= htmlspecialchars($s['destino_general']) ?>"
+        >
+          #<?= $s['id_solicitud'] ?> - <?= htmlspecialchars($s['origen']) ?> → <?= htmlspecialchars($s['destino_general']) ?>
+        </option>
+      <?php endforeach; ?>
+    </select>
 
-    <!-- 🔽 Selección de Solicitud -->
-    <div>
-      <label for="id_solicitud" class="block font-semibold mb-1">Solicitud Asociada:</label>
-      <select name="id_solicitud" id="id_solicitud" class="input-field" required>
-        <option value="">-- Seleccione una solicitud --</option>
-        <?php foreach ($solicitudes as $s): ?>
-          <option value="<?= $s['id_solicitud'] ?>">
-            #<?= $s['id_solicitud'] ?> - <?= htmlspecialchars($s['tipo_servicio']) ?> (<?= htmlspecialchars($s['origen']) ?> → <?= htmlspecialchars($s['destino_general']) ?>)
-          </option>
-        <?php endforeach; ?>
-      </select>
-    </div>
+    <label>Dirección Origen:</label>
+    <input type="text" name="direccion_origen" id="direccion_origen" placeholder="Ej: Bodega central" required>
 
-    <!-- 🏠 Dirección de origen -->
-    <div>
-      <label for="direccion_origen" class="block font-semibold mb-1">Dirección de Origen:</label>
-      <input type="text" name="direccion_origen" id="direccion_origen" class="input-field" required>
-    </div>
+    <label>Dirección Destino:</label>
+    <input type="text" name="direccion_destino" id="direccion_destino" placeholder="Ej: Alajuela, centro" required>
 
-    <!-- 🎯 Dirección de destino -->
-    <div>
-      <label for="direccion_destino" class="block font-semibold mb-1">Dirección de Destino:</label>
-      <input type="text" name="direccion_destino" id="direccion_destino" class="input-field" required>
-    </div>
+    <label>Peso estimado (kg):</label>
+    <input type="number" step="0.01" name="peso_estimado_kg" required placeholder="Ej: 10.5">
 
-    <!-- ⚖️ Peso estimado -->
-    <div>
-      <label for="peso_estimado_kg" class="block font-semibold mb-1">Peso Estimado (kg):</label>
-      <input type="number" step="0.01" name="peso_estimado_kg" id="peso_estimado_kg" class="input-field" required>
-    </div>
+    <label>Fecha de carga:</label>
+    <input type="date" name="fecha_carga">
 
-    <!-- 📅 Fechas -->
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
-        <label for="fecha_carga" class="block font-semibold mb-1">Fecha de Carga:</label>
-        <input type="date" name="fecha_carga" id="fecha_carga" class="input-field">
-      </div>
+    <label>Fecha estimada de entrega:</label>
+    <input type="date" name="fecha_entrega_estimada">
 
-      <div>
-        <label for="fecha_entrega_estimada" class="block font-semibold mb-1">Fecha Entrega Estimada:</label>
-        <input type="date" name="fecha_entrega_estimada" id="fecha_entrega_estimada" class="input-field">
-      </div>
-    </div>
+    <label>Observaciones:</label>
+    <textarea name="observaciones" placeholder="Comentarios adicionales..."></textarea>
 
-    <!-- 🚦 Estado -->
-    <div>
-      <label for="estado" class="block font-semibold mb-1">Estado:</label>
-      <select name="estado" id="estado" class="input-field">
-        <option value="Programada">Programada</option>
-        <option value="En Progreso">En Progreso</option>
-        <option value="Completada">Completada</option>
-        <option value="Cancelada">Cancelada</option>
-      </select>
-    </div>
-
-    <!-- 📝 Observaciones -->
-    <div>
-      <label for="observaciones" class="block font-semibold mb-1">Observaciones:</label>
-      <textarea name="observaciones" id="observaciones" class="input-field" rows="3"></textarea>
-    </div>
-
-    <!-- BOTONES -->
-    <div class="flex justify-between items-center pt-4">
-      <a href="/logistica_global/controllers/ordenController.php" class="btn btn-secondary">← Volver</a>
-      <button type="submit" class="btn btn-primary">💾 Guardar Orden</button>
-    </div>
+    <button type="submit" class="btn success">💾 Guardar</button>
+    <a href="/logistica_global/controllers/ordenController.php?accion=listar" class="btn secondary">⬅️ Cancelar</a>
   </form>
 </div>
+
+<script>
+// 🔄 Autocompletar origen/destino según solicitud seleccionada
+document.getElementById('id_solicitud').addEventListener('change', function () {
+  const selected = this.options[this.selectedIndex];
+  const origen = selected.getAttribute('data-origen') || '';
+  const destino = selected.getAttribute('data-destino') || '';
+
+  document.getElementById('direccion_origen').value = origen;
+  document.getElementById('direccion_destino').value = destino;
+});
+</script>

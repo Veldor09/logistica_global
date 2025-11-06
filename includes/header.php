@@ -17,7 +17,7 @@
       <a href="/logistica_global/index.php" class="nav-link">
         <i class="fa-solid fa-house"></i> Inicio
       </a>
-      <a href="/logistica_global/controllers/reporteController.php" class="nav-link">
+      <a href="/logistica_global/controllers/reporteEficienciaController.php" class="nav-link">
         <i class="fa-solid fa-chart-line"></i> Reportes
       </a>
       <a href="/logistica_global/controllers/clienteController.php" class="nav-link">
@@ -29,7 +29,14 @@
   <div class="header-right">
     <div class="user-info">
       <i class="fa-solid fa-user-circle"></i>
-      <span>Admin</span>
+      <?php if (!empty($_SESSION['usuario'])): ?>
+        <span><?= htmlspecialchars($_SESSION['usuario']['nombre']) ?> (<?= htmlspecialchars($_SESSION['usuario']['rol']) ?>)</span>
+        <a href="/logistica_global/controllers/loginController.php?logout=1" class="logout-btn" title="Cerrar sesión">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </a>
+      <?php else: ?>
+        <span>Invitado</span>
+      <?php endif; ?>
     </div>
   </div>
 </header>

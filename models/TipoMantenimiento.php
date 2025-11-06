@@ -1,80 +1,33 @@
 <?php
 class TipoMantenimiento {
 
-    /* Obtener todos los tipos de mantenimiento */
     public static function obtenerTodos($conn) {
-        $query = "
-            SELECT 
-                id_tipo_mantenimiento,
-                nombre,
-                descripcion,
-                frecuencia_dias
-            FROM Tipo_Mantenimiento
-            ORDER BY id_tipo_mantenimiento DESC
-        ";
+        // ✅ Insertar tipos por defecto si la tabla está vacía
+        $check = sqlsrv_query($conn, "SELECT COUNT(*) AS total FROM Tipo_Mantenimiento");
+        $row = sqlsrv_fetch_array($check, SQLSRV_FETCH_ASSOC);
+        if ($row['total'] == 0) {
+            $defaults = [
+                ['Cambio de aceite', 'Reemplazo de aceite de motor', 90],
+                ['Cambio de frenos', 'Sustitución de pastillas y revisión del sistema de frenos', 180],
+                ['Revisión general', 'Inspección preventiva completa del vehículo', 365],
+                ['Cambio de filtro', 'Reemplazo de filtros de aire y combustible', 120],
+                ['Alineamiento y balanceo', 'Ajuste de llantas y ejes', 180]
+            ];
+            foreach ($defaults as $t) {
+                sqlsrv_query($conn, "INSERT INTO Tipo_Mantenimiento (nombre, descripcion, frecuencia_dias) VALUES (?, ?, ?)", $t);
+            }
+        }
 
-        $stmt = sqlsrv_query($conn, $query);
-        if (!$stmt) die(print_r(sqlsrv_errors(), true));
+        // ✅ Devolver todos los registros
+        $sql = "SELECT id_tipo_mantenimiento, nombre, descripcion FROM Tipo_Mantenimiento ORDER BY id_tipo_mantenimiento ASC";
+        $stmt = sqlsrv_query($conn, $sql);
+        if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
 
         $tipos = [];
         while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
             $tipos[] = $row;
         }
         return $tipos;
-    }
-
-    /* Obtener un tipo por ID */
-    public static function obtenerPorId($conn, $id) {
-        $query = "SELECT * FROM Tipo_Mantenimiento WHERE id_tipo_mantenimiento = ?";
-        $stmt = sqlsrv_query($conn, $query, [$id]);
-        if (!$stmt) die(print_r(sqlsrv_errors(), true));
-
-        return sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC);
-    }
-
-    /* Crear nuevo tipo de mantenimiento */
-    public static function crear($conn, $data) {
-        $query = "
-            INSERT INTO Tipo_Mantenimiento (nombre, descripcion, frecuencia_dias)
-            OUTPUT INSERTED.id_tipo_mantenimiento
-            VALUES (?, ?, ?)
-        ";
-        $params = [
-            $data['nombre'],
-            $data['descripcion'] ?? null,
-            $data['frecuencia_dias'] ?? null
-        ];
-
-        $stmt = sqlsrv_query($conn, $query, $params);
-        if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
-
-        sqlsrv_fetch($stmt);
-        return sqlsrv_get_field($stmt, 0);
-    }
-
-    /* Actualizar tipo de mantenimiento */
-    public static function actualizar($conn, $id, $data) {
-        $query = "
-            UPDATE Tipo_Mantenimiento
-            SET nombre = ?, descripcion = ?, frecuencia_dias = ?
-            WHERE id_tipo_mantenimiento = ?
-        ";
-        $params = [
-            $data['nombre'],
-            $data['descripcion'],
-            $data['frecuencia_dias'],
-            $id
-        ];
-
-        $stmt = sqlsrv_query($conn, $query, $params);
-        if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
-    }
-
-    /* Eliminar tipo de mantenimiento */
-    public static function eliminar($conn, $id) {
-        $query = "DELETE FROM Tipo_Mantenimiento WHERE id_tipo_mantenimiento = ?";
-        $stmt = sqlsrv_query($conn, $query, [$id]);
-        if (!$stmt) throw new Exception(print_r(sqlsrv_errors(), true));
     }
 }
 ?>

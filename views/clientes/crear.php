@@ -1,97 +1,190 @@
-<?php require __DIR__ . '/../layout.php'; ?>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Registrar Cliente</title>
+  <link rel="stylesheet" href="../../assets/css/style.css">
+  <script>
+    function toggleTipoCliente() {
+      const tipo = document.getElementById("tipo_identificacion").value;
+      document.getElementById("formFisico").style.display = tipo === "FISICO" ? "block" : "none";
+      document.getElementById("formJuridico").style.display = tipo === "JURIDICO" ? "block" : "none";
+    }
 
-<div class="container">
-  <h1>Crear Cliente</h1>
+    document.addEventListener("DOMContentLoaded", function() {
+      const provincias = {
+        "San José": {
+          "Central": ["Carmen", "Merced", "Hospital", "Catedral", "Zapote", "San Francisco de Dos Ríos"],
+          "Escazú": ["Escazú Centro", "San Rafael", "San Antonio"],
+          "Desamparados": ["Desamparados Centro", "San Miguel", "San Rafael Arriba"]
+        },
+        "Alajuela": {
+          "Central": ["Alajuela", "San José", "Carrizal", "San Antonio"],
+          "San Ramón": ["San Ramón Centro", "Santiago", "Piedades Norte"],
+          "Grecia": ["Grecia Centro", "San Roque", "San Isidro"]
+        },
+        "Cartago": {
+          "Central": ["Oriental", "Occidental", "San Nicolás", "Aguacaliente"],
+          "Paraíso": ["Paraíso Centro", "Santiago", "Cachí"],
+          "La Unión": ["Tres Ríos", "San Diego", "San Juan"]
+        },
+        "Heredia": {
+          "Central": ["Heredia", "Mercedes", "San Francisco"],
+          "Barva": ["Barva Centro", "San Pedro", "San Pablo"],
+          "Santo Domingo": ["Santo Domingo", "Paracito", "Pará"]
+        },
+        "Guanacaste": {
+          "Liberia": ["Liberia", "Cañas Dulces", "Mayorga", "Nacascolo", "Curubandé"],
+          "Nicoya": ["Nicoya", "Mansión", "San Antonio", "Sámara", "Nosara"],
+          "Santa Cruz": ["Santa Cruz", "Veintisiete de Abril", "Tamarindo", "Bolsón"],
+          "Bagaces": ["Bagaces", "Fortuna", "Mogote", "Río Naranjo"],
+          "Carrillo": ["Filadelfia", "Palmira", "Sardinal", "Belén"],
+          "Cañas": ["Cañas", "Palmira", "San Miguel", "Bebedero"],
+          "Tilarán": ["Tilarán", "Tronadora", "Quebrada Grande", "Tierras Morenas"],
+          "La Cruz": ["La Cruz", "Santa Cecilia", "La Garita", "Santa Elena"],
+          "Hojancha": ["Hojancha", "Monte Romo", "Puerto Carrillo", "Huacas"]
+        },
+        "Puntarenas": {
+          "Central": ["Puntarenas", "Barranca", "El Roble"],
+          "Esparza": ["Espíritu Santo", "San Juan Grande", "Macacona"],
+          "Buenos Aires": ["Buenos Aires", "Volcán", "Brunka"]
+        },
+        "Limón": {
+          "Central": ["Limón", "Valle La Estrella", "Río Blanco"],
+          "Pococí": ["Guápiles", "Jiménez", "Cariari"],
+          "Siquirres": ["Siquirres", "Pacuarito", "Florida"]
+        }
+      };
 
-  <form method="POST" action="/logistica_global/controllers/clienteController.php?accion=crear" id="form-cliente">
-    <h3>Datos del Cliente</h3>
+      const provinciaSelect = document.getElementById("provincia");
+      const cantonSelect = document.getElementById("canton");
+      const distritoSelect = document.getElementById("distrito");
 
-    <label>Tipo de Identificación</label>
-    <select name="tipo_identificacion" id="tipo_identificacion" required>
-      <option value="Fisica">Física</option>
-      <option value="Juridica">Jurídica</option>
-    </select>
+      // Cargar provincias
+      for (const prov in provincias) {
+        const opt = document.createElement("option");
+        opt.value = prov;
+        opt.textContent = prov;
+        provinciaSelect.appendChild(opt);
+      }
 
-    <label>Correo</label>
-    <input type="email" name="correo" placeholder="cliente@correo.com">
+      // Cambiar provincia → cargar cantones
+      provinciaSelect.addEventListener("change", () => {
+        cantonSelect.innerHTML = '<option value="">-- Seleccione Cantón --</option>';
+        distritoSelect.innerHTML = '<option value="">-- Seleccione Distrito --</option>';
+        distritoSelect.disabled = true;
 
-    <label>Teléfono</label>
-    <input type="text" name="telefono" placeholder="8888-8888">
+        const cantones = provincias[provinciaSelect.value];
+        if (cantones) {
+          cantonSelect.disabled = false;
+          for (const canton in cantones) {
+            const opt = document.createElement("option");
+            opt.value = canton;
+            opt.textContent = canton;
+            cantonSelect.appendChild(opt);
+          }
+        } else {
+          cantonSelect.disabled = true;
+        }
+      });
 
-    <label>Dirección</label>
-    <input type="text" name="direccion" placeholder="Dirección exacta">
+      // Cambiar cantón → cargar distritos
+      cantonSelect.addEventListener("change", () => {
+        distritoSelect.innerHTML = '<option value="">-- Seleccione Distrito --</option>';
+        const cantones = provincias[provinciaSelect.value];
+        const distritos = cantones ? cantones[cantonSelect.value] : null;
 
-    <label>Provincia</label>
-    <input type="text" name="provincia">
+        if (distritos) {
+          distritoSelect.disabled = false;
+          distritos.forEach(dist => {
+            const opt = document.createElement("option");
+            opt.value = dist;
+            opt.textContent = dist;
+            distritoSelect.appendChild(opt);
+          });
+        } else {
+          distritoSelect.disabled = true;
+        }
+      });
+    });
+  </script>
+</head>
 
-    <label>Cantón</label>
-    <input type="text" name="canton">
+<body>
+  <div class="container">
+    <h1>➕ Registrar Cliente</h1>
 
-    <label>Distrito</label>
-    <input type="text" name="distrito">
+    <form method="POST" action="/logistica_global/controllers/clienteController.php?accion=crear">
+      <label>Tipo de Cliente:</label>
+      <select name="tipo_identificacion" id="tipo_identificacion" onchange="toggleTipoCliente()" required>
+        <option value="">-- Seleccionar --</option>
+        <option value="FISICO">Físico</option>
+        <option value="JURIDICO">Jurídico</option>
+      </select>
 
-    <h3 id="titulo-fisica">Datos de Persona Física</h3>
+      <label>Correo:</label>
+      <input type="email" name="correo" required>
 
-    <label>Nombre</label>
-    <input type="text" name="nombre" id="f_nombre" required>
+      <label>Teléfono:</label>
+      <input type="text" name="telefono">
 
-    <label>Primer Apellido</label>
-    <input type="text" name="primer_apellido" id="f_ape1" required>
+      <label>Dirección:</label>
+      <input type="text" name="direccion">
 
-    <label>Segundo Apellido</label>
-    <input type="text" name="segundo_apellido" id="f_ape2">
+      <label>Provincia:</label>
+      <select id="provincia" name="provincia" required>
+        <option value="">-- Seleccione Provincia --</option>
+      </select>
 
-    <label>Cédula</label>
-    <input type="text" name="cedula" id="f_ced" required>
+      <label>Cantón:</label>
+      <select id="canton" name="canton" required disabled>
+        <option value="">-- Seleccione Cantón --</option>
+      </select>
 
-    <h3 id="titulo-juridica" style="display:none;">Datos de Persona Jurídica</h3>
+      <label>Distrito:</label>
+      <select id="distrito" name="distrito" required disabled>
+        <option value="">-- Seleccione Distrito --</option>
+      </select>
 
-    <label class="j-only" style="display:none;">Nombre de la Empresa</label>
-    <input class="j-only" style="display:none;" type="text" name="nombre_empresa" id="j_empresa">
+      <!-- Cliente Físico -->
+      <div id="formFisico" style="display:none; grid-column: 1 / -1;">
+        <h3>👤 Datos Cliente Físico</h3>
+        <label>Nombre:</label>
+        <input type="text" name="nombre">
+        <label>Primer Apellido:</label>
+        <input type="text" name="primer_apellido">
+        <label>Segundo Apellido:</label>
+        <input type="text" name="segundo_apellido">
+        <label>Cédula:</label>
+        <input type="text" name="cedula_fisica">
+      </div>
 
-    <label class="j-only" style="display:none;">Cédula Jurídica</label>
-    <input class="j-only" style="display:none;" type="text" name="cedula_juridica" id="j_cedjur">
+      <!-- Cliente Jurídico -->
+      <div id="formJuridico" style="display:none; grid-column: 1 / -1;">
+        <h3>🏢 Datos Cliente Jurídico</h3>
+        <label>Nombre Empresa:</label>
+        <input type="text" name="nombre_empresa">
+        <label>Cédula Jurídica:</label>
+        <input type="text" name="cedula_juridica">
 
-    <h4 class="j-only" style="display:none;">Representante Legal (opcional)</h4>
+        <h4>👔 Representante Legal</h4>
+        <label>Nombre:</label>
+        <input type="text" name="rep_nombre">
+        <label>Primer Apellido:</label>
+        <input type="text" name="rep_ape1">
+        <label>Segundo Apellido:</label>
+        <input type="text" name="rep_ape2">
+        <label>Teléfono:</label>
+        <input type="text" name="rep_telefono">
+        <label>Correo:</label>
+        <input type="email" name="rep_correo">
+        <label>Cédula:</label>
+        <input type="text" name="rep_cedula">
+      </div>
 
-    <label class="j-only" style="display:none;">Nombre</label>
-    <input class="j-only" style="display:none;" type="text" name="rep_nombre">
-
-    <label class="j-only" style="display:none;">Primer Apellido</label>
-    <input class="j-only" style="display:none;" type="text" name="rep_ape1">
-
-    <label class="j-only" style="display:none;">Segundo Apellido</label>
-    <input class="j-only" style="display:none;" type="text" name="rep_ape2">
-
-    <label class="j-only" style="display:none;">Teléfono</label>
-    <input class="j-only" style="display:none;" type="text" name="rep_telefono">
-
-    <label class="j-only" style="display:none;">Correo</label>
-    <input class="j-only" style="display:none;" type="email" name="rep_correo">
-
-    <label class="j-only" style="display:none;">Cédula</label>
-    <input class="j-only" style="display:none;" type="text" name="rep_cedula">
-
-    <button type="submit">Guardar</button>
-  </form>
-</div>
-
-<script>
-const tipo = document.getElementById('tipo_identificacion');
-const jOnly = document.querySelectorAll('.j-only');
-const fisicaFields = ['f_nombre','f_ape1','f_ape2','f_ced'].map(id=>document.getElementById(id));
-const tituloFis = document.getElementById('titulo-fisica');
-const tituloJur = document.getElementById('titulo-juridica');
-
-function toggleTipo() {
-  const isFisica = tipo.value === 'Fisica';
-  jOnly.forEach(el => el.style.display = isFisica ? 'none' : '');
-  fisicaFields.forEach((el,i) => el.required = isFisica ? (i!==2) : false);
-  document.getElementById('j_empresa').required = !isFisica;
-  document.getElementById('j_cedjur').required = !isFisica;
-  tituloFis.style.display = isFisica ? '' : 'none';
-  tituloJur.style.display = isFisica ? 'none' : '';
-}
-tipo.addEventListener('change', toggleTipo);
-toggleTipo();
-</script>
+      <button type="submit">💾 Guardar</button>
+      <a href="/logistica_global/controllers/clienteController.php" class="btn">⬅️ Volver</a>
+    </form>
+  </div>
+</body>
+</html>
